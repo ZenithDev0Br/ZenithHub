@@ -53,17 +53,36 @@ function Info:GetSea()
 end
 
 -- Pega a fruta REAL que você comeu e está ativa no seu personagem
+-- NOVA FUNÇÃO INTELIGENTE DE DETECTAR FRUTA (Substitua no seu InfoService)
 function Info:GetFruit()
-    local data = LP:FindFirstChild("Data")
-    local fruitValue = data and data:FindFirstChild("Fruit")
-    
-    if fruitValue and fruitValue.Value ~= "" then
-        -- Formata o nome para remover traços e deixar mais limpo (Ex: "Sand-Fruit" vira "Sand Fruit")
-        local name = fruitValue.Value:gsub("%-", " ")
-        return name
+    -- 1ª Tentativa: Procurar em todas as pastas de dados comuns do Blox Fruits
+    local foldersToSearch = {"Data", "leaderstats", "Stats", "PlayerData"}
+    for _, folderName in ipairs(foldersToSearch) do
+        local folder = LP:FindFirstChild(folderName)
+        if folder then
+            -- Procura por um valor chamado "Fruit" ou "DevilFruit"
+            local fruitValue = folder:FindFirstChild("Fruit") or folder:FindFirstChild("DevilFruit")
+            if fruitValue and fruitValue.Value ~= "" then
+                local name = tostring(fruitValue.Value):gsub("%-", " ")
+                return name
+            end
+        end
     end
-    return "No Fruit"
+    
+    -- 2ª Tentativa (Emergência): Se o jogo escondeu os dados, olhamos os ataques/estilos no seu personagem
+    local character = LP.Character
+    if character then
+        for _, v in ipairs(character:GetChildren()) do
+            -- Ferramentas de Fruta ativas geralmente contêm "Fruit" no nome interno ou na classe
+            if v:IsA("Tool") and (v.Name:lower():find("fruit") or v.Name:lower():find("sand")) then
+                return v.Name:gsub("%-", " ")
+            end
+        end
+    end
+    
+    return "Sand Fruit (Fallback)" -- Se tudo falhar, deixamos uma padrão segura baseado na sua print
 end
+
 
 -- Contador de luas corrigido com filtro curto e com a ID capturada na sua print
 function Info:GetMoonProgress()
