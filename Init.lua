@@ -1,29 +1,30 @@
---[[
-    ZenithHub Init
-]]
-
 local ZenithHub = {}
+
 getgenv().ZenithHub = ZenithHub
 
-ZenithHub.Version = "0.0.1"
+ZenithHub.Version = "1.0.0"
 
-local function Load(File)
-    local Success, Result = pcall(function()
-        return loadstring(
-            game:HttpGet(
-                "https://raw.githubusercontent.com/ZenithDev0Br/ZenithHub/main/" .. File
-            )
-        )()
+ZenithHub.Settings = {
+    Enabled = true
+}
+
+local BaseURL = "https://raw.githubusercontent.com/ZenithDev0Br/ZenithHub/main/"
+
+local function Load(file)
+    local ok, res = pcall(function()
+        return loadstring(game:HttpGet(BaseURL .. file))()
     end)
 
-    if not Success then
-        warn("[ZenithHub] Failed loading:", File)
-        warn(Result)
+    if not ok then
+        warn("Error loading: " .. file)
+        return nil
     end
 
-    return Result
+    return res
 end
 
 ZenithHub.Core = Load("Core.lua")
-
+Load("BloxFruitsUI.lua")
 Load("Main.lua")
+
+print("ZenithHub Initialized")
