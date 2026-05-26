@@ -8,6 +8,9 @@ ZenithHub.Settings = {
     Enabled = true
 }
 
+ZenithHub.UI = {}
+ZenithHub.Modules = {}
+
 local BaseURL = "https://raw.githubusercontent.com/ZenithDev0Br/ZenithHub/main/"
 
 local function Load(file)
@@ -16,7 +19,7 @@ local function Load(file)
     end)
 
     if not ok then
-        warn("Error loading: " .. file)
+        warn("Error loading:", file)
         return nil
     end
 
@@ -24,7 +27,9 @@ local function Load(file)
 end
 
 ZenithHub.Core = Load("Core.lua")
+
+Load("Modules/InfoService.lua")
 Load("BloxFruitsUI.lua")
 Load("Main.lua")
 
-print("ZenithHub Initialized")
+print("ZenithHub Loaded")
