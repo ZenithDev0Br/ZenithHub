@@ -1,81 +1,88 @@
+if not getgenv().ZenithHub then getgenv().ZenithHub = { Modules = {} } end
 local FarmLevel = {}
 local TS = game:GetService("TweenService")
 local RS = game:GetService("RunService")
 local LP = game:GetService("Players").LocalPlayer
 
 local noclipConnection = nil
+local activeTween = nil
+_G.CurrentMobName = ""
 
--- Função de NoClip (Atravessar paredes)
 function FarmLevel:ToggleNoClip(enabled)
     if enabled then
         if not noclipConnection then
             noclipConnection = RS.Stepped:Connect(function()
-                if LP.Character then
+                if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
                     for _, v in pairs(LP.Character:GetChildren()) do
-                        if v:IsA("BasePart") then
-                            v.CanCollide = false
-                        end
+                        if v:IsA("BasePart") then v.CanCollide = false end
+                    end
+                    -- Anti-Queda
+                    if not LP.Character.HumanoidRootPart:FindFirstChild("AntiFall") then
+                        local bv = Instance.new("BodyVelocity")
+                        bv.Name = "AntiFall"
+                        bv.MaxForce = Vector3.new(0, 99999, 0)
+                        bv.Velocity = Vector3.zero
+                        bv.Parent = LP.Character.HumanoidRootPart
                     end
                 end
             end)
         end
     else
-        if noclipConnection then
-            noclipConnection:Disconnect()
-            noclipConnection = nil
+        if noclipConnection then noclipConnection:Disconnect(); noclipConnection = nil end
+        if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
+            local bv = LP.Character.HumanoidRootPart:FindFirstChild("AntiFall")
+            if bv then bv:Destroy() end
         end
     end
-end
-
--- Lógica de pegar quest (Ainda precisa da lista de nomes de Quests e NPCs)
-function FarmLevel:TakeQuest()
-    -- No Blox Fruits, usamos o CommF_ para pegar a missão.
-    -- Exemplo: game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", "NOME_DA_QUEST", 1)
-    -- Como as quests mudam por level, precisamos definir a lista de quests depois!
 end
 
 function FarmLevel:AutoFarm(enabled)
     _G.AutoFarmLevel = enabled
-    self:ToggleNoClip(enabled) -- Liga/Desliga o NoClip junto com o Farm
+    self:ToggleNoClip(enabled)
 
     task.spawn(function()
         while _G.AutoFarmLevel and task.wait() do
+            -- Chama o novo MÓDULO DE QUEST
+            local QuestModule = getgenv().ZenithHub.Modules.Quest
+            if not QuestModule then task.wait(1); continue end
             
-            -- Aqui entraria a verificação: Se não tiver quest, pega a quest.
-            -- if not LP.PlayerGui.Main.Quest.Visible then self:TakeQuest() end
-
-            local Target = self:GetClosestEnemy()
-            if Target and Target:FindFirstChild("HumanoidRootPart") then
-                -- Matemática da posição: Altura e Distância
-                local targetPos = Target.HumanoidRootPart.CFrame * CFrame.new(0, _G.AttackHeight, _G.AttackDistance)
-                
-                local distance = (LP.Character.HumanoidRootPart.Position - targetPos.Position).Magnitude
-                local info = TweenInfo.new(distance / _G.TweenSpeed, Enum.EasingStyle.Linear)
-                
-                local tween = TS:Create(LP.Character.HumanoidRootPart, info, {CFrame = targetPos})
-                tween:Play()
-                
-                -- Se chegar muito perto, para o tween para não ficar "dançando"
-                if distance < 10 then
-                    tween:Cancel()
-                    LP.Character.HumanoidRootPart.CFrame = targetPos
-                else
-                    tween.Completed:Wait()
+            local myLevel = LP.leaderstats.Level.Value
+            local qData = QuestModule:GetCurrentQuest(myLevel)
+            _G.CurrentMobName = qData.Mob 
+            
+            -- Se JÁ TEM a quest, vai caçar os monstros
+            if QuestModule:HasActiveQuest(LP) then
+                local targetMob = nil
+                for _, v in pairs(workspace.Enemies:GetChildren()) do
+                    if v.Name == qData.Mob and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
+                        targetMob = v
+                        break
+                    end
                 end
+                
+                if targetMob then
+                    local targetPos = targetMob.HumanoidRootPart.CFrame * CFrame.new(0, _G.AttackHeight, _G.AttackDistance)
+                    local dist = (LP.Character.HumanoidRootPart.Position - targetPos.Position).Magnitude
+                    
+                    if dist > 5 then
+                        local info = TweenInfo.new(dist / _G.TweenSpeed, Enum.EasingStyle.Linear)
+                        activeTween = TS:Create(LP.Character.HumanoidRootPart, info, {CFrame = targetPos})
+                        activeTween:Play()
+                    else
+                        if activeTween then activeTween:Cancel() end
+                        LP.Character.HumanoidRootPart.CFrame = targetPos
+                    end
+                else
+                    -- Bicho não spawnou, espera um pouco
+                    task.wait(0.5)
+                end
+            else
+                -- SE NÃO TEM A QUEST, MANDA PEGAR!
+                QuestModule:TakeQuest(qData)
+                task.wait(0.5) -- Pausa rápida para o servidor processar a quest
             end
         end
     end)
-end
-
-function FarmLevel:GetClosestEnemy()
-    local closest, dist = nil, math.huge
-    for _, v in pairs(workspace.Enemies:GetChildren()) do
-        if v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
-            local d = (v.HumanoidRootPart.Position - LP.Character.HumanoidRootPart.Position).Magnitude
-            if d < dist then closest = v; dist = d end
-        end
-    end
-    return closest
 end
 
 getgenv().ZenithHub.Modules.FarmLevel = FarmLevel
