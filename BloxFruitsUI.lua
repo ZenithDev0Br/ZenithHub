@@ -7,7 +7,7 @@ local Library = loadstring(game:HttpGet(
 
 local Window = Library:MakeWindow({
     Title = "Zenith Hub",
-    SubTitle = "Info Panel",
+    SubTitle = "Simple Panel",
     ScriptFolder = "ZenithHub"
 })
 
@@ -16,27 +16,18 @@ local Tab = Window:MakeTab({
     Icon = "Home"
 })
 
-local label = Tab:AddParagraph("Status", "Loading...")
+local label = Tab:AddParagraph("Info", "Loading...")
 
 task.spawn(function()
     while task.wait(1) do
 
         local d = Info.Data
 
-        local function icon(v)
-            return v and "🟢" or "🔴"
-        end
-
         local text =
         "Level: " .. d.Level .. "\n" ..
         "Sea: " .. d.Sea .. "\n" ..
-        "Fruit: " .. d.Fruit .. "\n\n" ..
-        "FullMoon: " .. icon(d.FullMoon) .. "\n" ..
-        "Mirage: " .. icon(d.Mirage) .. "\n" ..
-        "Kitsune: " .. icon(d.Kitsune) .. "\n" ..
-        "Factory: " .. icon(d.Factory)
+        "Fruit: " .. d.Fruit
 
         label:Set(text)
-
     end
 end)
