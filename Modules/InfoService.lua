@@ -1,4 +1,4 @@
--- [[ ZENITH HUB - BACKEND ATUALIZADO (InfoService + Bosses) ]] --
+-- [[ ZENITH HUB - BACKEND ATUALIZADO (InfoService + Pull Lever & Prehistoric) ]] --
 
 if not getgenv().ZenithHub then getgenv().ZenithHub = {} end
 if not getgenv().ZenithHub.Modules then getgenv().ZenithHub.Modules = {} end
@@ -21,14 +21,15 @@ Info.Data = {
     Level = 0,
     Sea = "Unknown",
     Fruit = "None",
+    PullLever = false, -- Status da Alavanca
     Mirage = false,
     Kitsune = false,
     FrozenIsland = false,
+    PrehistoricIsland = false, -- Status da Prehistoric
     FruitSpawned = false,
     FullMoon = false,
     Factory = false,
     MoonProgress = "Verificando...",
-    -- Novas variáveis dos Bosses
     CursedCaptain = false,
     Darkbeard = false,
     CakePrince = false,
@@ -63,6 +64,19 @@ function Info:GetFruit()
     return "No Fruit"
 end
 
+-- Pega se a alavanca da Mirage/Raça V4 já foi puxada pelo jogador na conta dele
+function Info:GetPullLever()
+    -- No Blox Fruits, o progresso de quests e alavancas fica na pasta "Variables" do jogador
+    local variables = LP:FindFirstChild("Variables")
+    if variables then
+        local lever = variables:FindFirstChild("PullLever") or variables:FindFirstChild("Lever") or variables:FindFirstChild("DungeonLever")
+        if lever then
+            return lever.Value == true or lever.Value == 1
+        end
+    end
+    return false
+end
+
 function Info:GetMoonProgress()
     local sky = Lighting:FindFirstChildOfClass("Sky")
     if not sky then return "Céu não encontrado" end
@@ -80,9 +94,9 @@ function Info:GetMoonProgress()
     return "Fase Desconhecida"
 end
 
--- Scanner Avançado de Mundo (Ilhas, Eventos, Frutas e Bosses)
+-- Scanner Avançado do Mundo
 function Info:ScanWorld()
-    -- 1. Varredura na pasta Map (Ilhas e Eventos Estáticos)
+    -- 1. Varredura na pasta Map
     local mapFolder = Workspace:FindFirstChild("Map")
     if mapFolder then
         for _, v in ipairs(mapFolder:GetChildren()) do
@@ -90,28 +104,29 @@ function Info:ScanWorld()
             if n:find("mirage") or n:find("mystic") then self.Data.Mirage = true
             elseif n:find("kitsune") then self.Data.Kitsune = true
             elseif n:find("frozen") then self.Data.FrozenIsland = true
+            elseif n:find("prehistoric") or n:find("dinosaur") then self.Data.PrehistoricIsland = true
             elseif n:find("factory") or n:find("core") then self.Data.Factory = true
             end
         end
     end
 
-    -- 2. Varredura direta no Workspace (Procura Bosses vivos e Frutas dropadas)
+    -- 2. Varredura direta no Workspace
     for _, v in ipairs(Workspace:GetChildren()) do
         local n = v.Name:lower()
         
-        -- Detecção de Ilhas soltas
         if n:find("mirage") or n:find("mystic") then self.Data.Mirage = true
         elseif n:find("kitsune") then self.Data.Kitsune = true
         elseif n:find("frozen") then self.Data.FrozenIsland = true
+        elseif n:find("prehistoric") or n:find("dinosaur") then self.Data.PrehistoricIsland = true
         elseif n:find("factory") and v:FindFirstChild("Core") then self.Data.Factory = true
         
-        -- Detecção de Fruta dropada no chão
+        -- Fruta no chão
         elseif v:IsA("Tool") and (v.Name:find("Fruit") or v.Name:find("Fruta")) then
             self.Data.FruitSpawned = true
         elseif v:IsA("Model") and (v.Name:find("Fruit") or v.Name:find("Fruta")) then
             self.Data.FruitSpawned = true
         
-        -- DETECÇÃO DE BOSSES (Verifica se o modelo do Boss está spawnado e com vida)
+        -- Bosses Vivos
         elseif v:IsA("Model") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
             local bossName = v.Name
             if bossName == "Cursed Captain" then self.Data.CursedCaptain = true
@@ -123,7 +138,7 @@ function Info:ScanWorld()
         end
     end
     
-    -- 3. Checagem extra na pasta de NPCs do jogo (Caso os modelos fiquem escondidos lá)
+    -- 3. Pasta extra de NPCs (Enemies)
     local enemiesFolder = Workspace:FindFirstChild("Enemies") or Workspace:FindFirstChild("NPCs")
     if enemiesFolder then
         for _, v in ipairs(enemiesFolder:GetChildren()) do
@@ -146,6 +161,7 @@ function Info:Start()
             local successLevel, level = pcall(function() return Core:GetLevel() end)
             self.Data.Sea = self:GetSea()
             self.Data.Fruit = self:GetFruit()
+            self.Data.PullLever = self:GetPullLever() -- Atualiza a alavanca
             self.Data.Level = successLevel and level or 0
             self.Data.FullMoon = (Lighting.ClockTime >= 18 or Lighting.ClockTime <= 6)
             self.Data.MoonProgress = self:GetMoonProgress()
@@ -154,6 +170,7 @@ function Info:Start()
             self.Data.Mirage = false
             self.Data.Kitsune = false
             self.Data.FrozenIsland = false
+            self.Data.PrehistoricIsland = false
             self.Data.FruitSpawned = false
             self.Data.Factory = false
             self.Data.CursedCaptain = false
@@ -169,4 +186,4 @@ end
 
 getgenv().ZenithHub.Modules.InfoService = Info
 Info:Start()
-print("[ZenithHub] Módulo de Bosses e Mapa ativo!")
+print("[ZenithHub] Module InfoService carregado com todas as funções!")
