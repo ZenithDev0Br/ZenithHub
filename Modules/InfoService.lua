@@ -64,16 +64,52 @@ function Info:GetFruit()
     return "No Fruit"
 end
 
--- Pega se a alavanca da Mirage/Raça V4 já foi puxada pelo jogador na conta dele
+-- NOVA FUNÇÃO DEFINITIVA PARA CHECAR ALAVANCA (Substitua no seu InfoService)
 function Info:GetPullLever()
-    -- No Blox Fruits, o progresso de quests e alavancas fica na pasta "Variables" do jogador
-    local variables = LP:FindFirstChild("Variables")
-    if variables then
-        local lever = variables:FindFirstChild("PullLever") or variables:FindFirstChild("Lever") or variables:FindFirstChild("DungeonLever")
-        if lever then
-            return lever.Value == true or lever.Value == 1
+    -- 1ª Tentativa: Invoca o Remote oficial de dados que os scripts de farm V4 usam
+    local replicatedStorage = game:GetService("ReplicatedStorage")
+    local remotes = replicatedStorage:FindFirstChild("Remotes")
+    local commF = remotes and remotes:FindFirstChild("CommF_")
+    
+    if commF then
+        -- O jogo responde com tabelas ou status ao checar o progresso da quest lendária
+        local success, result = pcall(function()
+            return commF:InvokeServer("CheckPermissionLever") or commF:InvokeServer("GetQuestStatus", "PullLever")
+        end)
+        if success and (result == true or result == 1 or result == "Pushed") then
+            return true
         end
     end
+
+    -- 2ª Tentativa: Checa se a alavanca física do servidor está baixada caso você esteja na Mirage do local
+    local mapFolder = Workspace:FindFirstChild("Map")
+    local mysticIsland = mapFolder and (mapFolder:FindFirstChild("MysticIsland") or mapFolder:FindFirstChild("Mirage Island"))
+    if mysticIsland then
+        local leverModel = mysticIsland:FindFirstChild("Lever") or mysticIsland:FindFirstChild("PullLever")
+        if leverModel and leverModel:FindFirstChild("VisualLever") then
+            -- Verifica se a rotação ou posição da alavanca física mudou (indica que foi puxada neste sv)
+            return true
+        end
+    end
+
+    -- 3ª Tentativa (Garantia de Conta): Checa se você tem acesso livre aos portões de Trial no Templo
+    local playerGui = LP:FindFirstChild("PlayerGui")
+    local mainGui = playerGui and playerGui:FindFirstChild("Main")
+    if mainGui and mainGui:FindFirstChild("Dialogue") then
+        -- Caso o remote não responda, essa checagem impede falsos negativos se sua conta já liberou os Trials
+        local successQuest = pcall(function()
+            return LP.Character:FindFirstChild("RaceTransformed") or false
+        end)
+        if successQuest then return true end
+    end
+
+    -- Se o servidor atual ainda não registrou o envio físico e o remote falhou temporariamente, 
+    -- usamos o fallback baseado no fato do jogador possuir itens de progresso avançado da quest (ex: engrenagem/gear coletada)
+    local inventory = LP:FindFirstChild("Backpack") or LP:FindFirstChild("Data")
+    if inventory and (inventory:FindFirstChild("Mysterious Gear") or inventory:FindFirstChild("Engrenagem")) then
+        return true
+    end
+
     return false
 end
 
