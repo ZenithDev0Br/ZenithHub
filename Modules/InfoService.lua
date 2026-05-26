@@ -1,4 +1,4 @@
--- [[ ZENITH HUB - SCRIPT COMPLETO, ATUALIZADO E UNIFICADO ]] --
+-- [[ ZENITH HUB - SCRIPT COMPLETO COM FRUTA SPAWNADA E FROZEN ISLAND ]] --
 
 -- 1. INICIALIZAÇÃO DO AMBIENTE GLOBAL
 if not getgenv().ZenithHub then
@@ -33,6 +33,8 @@ Info.Data = {
     Fruit = "None",
     Mirage = false,
     Kitsune = false,
+    FrozenIsland = false, -- Nova variável para a Frozen Island
+    FruitSpawned = false, -- Nova variável para Fruta no Chão
     FullMoon = false,
     Factory = false,
     MoonProgress = "Verificando..."
@@ -52,15 +54,12 @@ function Info:GetSea()
     return "Unknown"
 end
 
--- Pega a fruta REAL que você comeu e está ativa no seu personagem
--- NOVA FUNÇÃO INTELIGENTE DE DETECTAR FRUTA (Substitua no seu InfoService)
+-- Pega a fruta REAL que comeu e está ativa no personagem
 function Info:GetFruit()
-    -- 1ª Tentativa: Procurar em todas as pastas de dados comuns do Blox Fruits
     local foldersToSearch = {"Data", "leaderstats", "Stats", "PlayerData"}
     for _, folderName in ipairs(foldersToSearch) do
         local folder = LP:FindFirstChild(folderName)
         if folder then
-            -- Procura por um valor chamado "Fruit" ou "DevilFruit"
             local fruitValue = folder:FindFirstChild("Fruit") or folder:FindFirstChild("DevilFruit")
             if fruitValue and fruitValue.Value ~= "" then
                 local name = tostring(fruitValue.Value):gsub("%-", " ")
@@ -69,22 +68,19 @@ function Info:GetFruit()
         end
     end
     
-    -- 2ª Tentativa (Emergência): Se o jogo escondeu os dados, olhamos os ataques/estilos no seu personagem
     local character = LP.Character
     if character then
         for _, v in ipairs(character:GetChildren()) do
-            -- Ferramentas de Fruta ativas geralmente contêm "Fruit" no nome interno ou na classe
             if v:IsA("Tool") and (v.Name:lower():find("fruit") or v.Name:lower():find("sand")) then
                 return v.Name:gsub("%-", " ")
             end
         end
     end
     
-    return "Sand Fruit (Fallback)" -- Se tudo falhar, deixamos uma padrão segura baseado na sua print
+    return "No Fruit"
 end
 
-
--- Contador de luas corrigido com filtro curto e com a ID capturada na sua print
+-- Contador de luas corrigido com filtro curto
 function Info:GetMoonProgress()
     local sky = Lighting:FindFirstChildOfClass("Sky")
     if not sky then return "Céu não encontrado" end
@@ -104,7 +100,7 @@ function Info:GetMoonProgress()
     elseif texture:find("0532") then 
         return "🌒 Faltam 5 luas"
     elseif texture:find("50086") or texture:find("4000") or texture:find("9014238216") then 
-        return "🌓 Faltam 6 luas (Crescente)" -- ID da sua print reconhecida aqui
+        return "🌓 Faltam 6 luas (Crescente)"
     elseif texture:find("8693") then 
         return "🌔 Faltam 7 luas"
     end
@@ -113,10 +109,10 @@ function Info:GetMoonProgress()
     return "Fase Desconhecida (ID: " .. rawId .. ")"
 end
 
--- Scanner de Mundo Otimizado (Zero Lag)
+-- Scanner de Mundo Otimizado (Escaneia Ilhas, Eventos e Frutas no chão)
 function Info:ScanWorld()
+    -- 1. Verifica na pasta Map
     local mapFolder = Workspace:FindFirstChild("Map")
-    
     if mapFolder then
         for _, v in ipairs(mapFolder:GetChildren()) do
             local n = v.Name:lower()
@@ -124,20 +120,33 @@ function Info:ScanWorld()
                 self.Data.Mirage = true
             elseif n:find("kitsune") then 
                 self.Data.Kitsune = true
+            elseif n:find("frozen") then -- Deteta a Frozen Island na pasta Map
+                self.Data.FrozenIsland = true
             elseif n:find("factory") or n:find("core") then 
                 self.Data.Factory = true
             end
         end
     end
 
+    -- 2. Verifica diretamente no Workspace (Ilhas e Frutas soltas)
     for _, v in ipairs(Workspace:GetChildren()) do
         local n = v.Name:lower()
         if n:find("mirage") or n:find("mystic") then 
             self.Data.Mirage = true
         elseif n:find("kitsune") then 
             self.Data.Kitsune = true
+        elseif n:find("frozen") then -- Deteta a Frozen Island no Workspace
+            self.Data.FrozenIsland = true
         elseif n:find("factory") and v:FindFirstChild("Core") then 
             self.Data.Factory = true
+        -- DETETOR DE FRUTA SPAWNADA: Procura por modelos de fruta soltos no chão
+        elseif v:IsA("Tool") and (v.Name:find("Fruit") or v.Name:find("Fruta")) then
+            self.Data.FruitSpawned = true
+        elseif v:IsA("Model") and (v.Name:find("Fruit") or v.Name:find("Fruta") or v:FindFirstChild("Handle")) then
+            -- Muitas frutas dropadas ficam como Model contendo um "Handle" e a palavra Fruit
+            if v.Name:find("Fruit") or v.Name:find("Fruta") then
+                self.Data.FruitSpawned = true
+            end
         end
     end
 end
@@ -157,6 +166,8 @@ function Info:Start()
             -- Reseta os status antes de re-escanear o mapa
             self.Data.Mirage = false
             self.Data.Kitsune = false
+            self.Data.FrozenIsland = false
+            self.Data.FruitSpawned = false
             self.Data.Factory = false
 
             self:ScanWorld()
@@ -198,6 +209,8 @@ task.spawn(function()
 
             local mirageStatus  = d.Mirage and "🟢 Spawned!" or "🔴 Not Found"
             local kitsuneStatus = d.Kitsune and "🟢 Spawned!" or "🔴 Not Found"
+            local frozenStatus  = d.FrozenIsland and "🟢 Active!" or "🔴 Not Found" -- Status Frozen Island
+            local fruitSpStatus = d.FruitSpawned and "🟢 SPAWNADA NO CHÃO!" or "🔴 Nenhuma" -- Status Fruta no Chão
             local factoryStatus = d.Factory and "🟢 Active!" or "🔴 Inactive"
             local timeStatus    = d.FullMoon and "🌕 Noite" or "☀️ Dia"
 
@@ -210,8 +223,10 @@ task.spawn(function()
                 "Ciclo Lunar: " .. tostring(d.MoonProgress) .. "\n" ..
                 "Período Atual: " .. timeStatus .. "\n" ..
                 "----------------------------------\n" ..
+                "Fruta no Mapa: " .. fruitSpStatus .. "\n" .. -- Linha da fruta no chão
                 "Mirage Island: " .. mirageStatus .. "\n" ..
                 "Kitsune Island: " .. kitsuneStatus .. "\n" ..
+                "Frozen Island: " .. frozenStatus .. "\n" .. -- Linha da Frozen Island
                 "Factory Event: " .. factoryStatus
 
             -- Modifica usando o método correto da documentação (SetDescription)
