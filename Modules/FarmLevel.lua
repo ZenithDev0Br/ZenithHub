@@ -16,23 +16,11 @@ function FarmLevel:ToggleNoClip(enabled)
                     for _, v in pairs(LP.Character:GetChildren()) do
                         if v:IsA("BasePart") then v.CanCollide = false end
                     end
-                    -- Anti-Queda
-                    if not LP.Character.HumanoidRootPart:FindFirstChild("AntiFall") then
-                        local bv = Instance.new("BodyVelocity")
-                        bv.Name = "AntiFall"
-                        bv.MaxForce = Vector3.new(0, 99999, 0)
-                        bv.Velocity = Vector3.zero
-                        bv.Parent = LP.Character.HumanoidRootPart
-                    end
                 end
             end)
         end
     else
         if noclipConnection then noclipConnection:Disconnect(); noclipConnection = nil end
-        if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
-            local bv = LP.Character.HumanoidRootPart:FindFirstChild("AntiFall")
-            if bv then bv:Destroy() end
-        end
     end
 end
 
@@ -41,46 +29,44 @@ function FarmLevel:AutoFarm(enabled)
     self:ToggleNoClip(enabled)
 
     task.spawn(function()
-        while _G.AutoFarmLevel and task.wait() do
-            -- Chama o módulo de Quest
+        while _G.AutoFarmLevel and task.wait(0.5) do
             local QuestModule = getgenv().ZenithHub.Modules.Quest
-            if not QuestModule then task.wait(1); continue end
+            if not QuestModule then continue end
             
-            -- CORREÇÃO: Usando a pasta 'Data' ao invés de 'leaderstats' para pegar o Level
             local myLevel = LP.Data.Level.Value
             local qData = QuestModule:GetCurrentQuest(myLevel)
             _G.CurrentMobName = qData.Mob 
             
-            -- Se JÁ TEM a quest, vai caçar os monstros
-            if QuestModule:HasActiveQuest(LP) then
-                local targetMob = nil
-                for _, v in pairs(workspace.Enemies:GetChildren()) do
-                    if v.Name == qData.Mob and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
-                        targetMob = v
-                        break
-                    end
-                end
-                
-                if targetMob then
-                    local targetPos = targetMob.HumanoidRootPart.CFrame * CFrame.new(0, _G.AttackHeight, _G.AttackDistance)
-                    local dist = (LP.Character.HumanoidRootPart.Position - targetPos.Position).Magnitude
-                    
-                    if dist > 5 then
-                        local info = TweenInfo.new(dist / _G.TweenSpeed, Enum.EasingStyle.Linear)
-                        activeTween = TS:Create(LP.Character.HumanoidRootPart, info, {CFrame = targetPos})
-                        activeTween:Play()
-                    else
-                        if activeTween then activeTween:Cancel() end
-                        LP.Character.HumanoidRootPart.CFrame = targetPos
-                    end
-                else
-                    -- Bicho não spawnou, espera um pouco
-                    task.wait(0.5)
-                end
-            else
-                -- SE NÃO TEM A QUEST, MANDA PEGAR!
+            -- FORÇA: Se a UI da quest sumir, ele tenta pegar novamente
+            if not QuestModule:HasActiveQuest(LP) then
                 QuestModule:TakeQuest(qData)
-                task.wait(0.5)
+                task.wait(1)
+            end
+            
+            -- LÓGICA DE MOVIMENTO E ATAQUE
+            local targetMob = nil
+            for _, v in pairs(workspace.Enemies:GetChildren()) do
+                -- Verifica se o bicho é da missão e se está vivo
+                if v.Name == qData.Mob and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
+                    targetMob = v
+                    break
+                end
+            end
+            
+            if targetMob then
+                local targetPos = targetMob.HumanoidRootPart.CFrame * CFrame.new(0, 15, 0) -- Fica 15 studs acima
+                
+                -- Se estiver longe, usa o Tween
+                if (LP.Character.HumanoidRootPart.Position - targetPos.Position).Magnitude > 10 then
+                    local info = TweenInfo.new(0.5, Enum.EasingStyle.Linear) -- Tween mais rápido
+                    if activeTween then activeTween:Cancel() end
+                    activeTween = TS:Create(LP.Character.HumanoidRootPart, info, {CFrame = targetPos})
+                    activeTween:Play()
+                else
+                    -- Já perto: para o tween e teletransporta para garantir
+                    if activeTween then activeTween:Cancel() end
+                    LP.Character.HumanoidRootPart.CFrame = targetPos
+                end
             end
         end
     end)
