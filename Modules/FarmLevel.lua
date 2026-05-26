@@ -1,22 +1,67 @@
 local FarmLevel = {}
 local TS = game:GetService("TweenService")
+local RS = game:GetService("RunService")
 local LP = game:GetService("Players").LocalPlayer
+
+local noclipConnection = nil
+
+-- Função de NoClip (Atravessar paredes)
+function FarmLevel:ToggleNoClip(enabled)
+    if enabled then
+        if not noclipConnection then
+            noclipConnection = RS.Stepped:Connect(function()
+                if LP.Character then
+                    for _, v in pairs(LP.Character:GetChildren()) do
+                        if v:IsA("BasePart") then
+                            v.CanCollide = false
+                        end
+                    end
+                end
+            end)
+        end
+    else
+        if noclipConnection then
+            noclipConnection:Disconnect()
+            noclipConnection = nil
+        end
+    end
+end
+
+-- Lógica de pegar quest (Ainda precisa da lista de nomes de Quests e NPCs)
+function FarmLevel:TakeQuest()
+    -- No Blox Fruits, usamos o CommF_ para pegar a missão.
+    -- Exemplo: game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", "NOME_DA_QUEST", 1)
+    -- Como as quests mudam por level, precisamos definir a lista de quests depois!
+end
 
 function FarmLevel:AutoFarm(enabled)
     _G.AutoFarmLevel = enabled
+    self:ToggleNoClip(enabled) -- Liga/Desliga o NoClip junto com o Farm
+
     task.spawn(function()
         while _G.AutoFarmLevel and task.wait() do
+            
+            -- Aqui entraria a verificação: Se não tiver quest, pega a quest.
+            -- if not LP.PlayerGui.Main.Quest.Visible then self:TakeQuest() end
+
             local Target = self:GetClosestEnemy()
             if Target and Target:FindFirstChild("HumanoidRootPart") then
-                local targetPos = Target.HumanoidRootPart.CFrame * CFrame.new(0, _G.AttackHeight, 0)
+                -- Matemática da posição: Altura e Distância
+                local targetPos = Target.HumanoidRootPart.CFrame * CFrame.new(0, _G.AttackHeight, _G.AttackDistance)
                 
-                -- Cálculo de tempo baseado na velocidade (_G.TweenSpeed)
                 local distance = (LP.Character.HumanoidRootPart.Position - targetPos.Position).Magnitude
                 local info = TweenInfo.new(distance / _G.TweenSpeed, Enum.EasingStyle.Linear)
                 
                 local tween = TS:Create(LP.Character.HumanoidRootPart, info, {CFrame = targetPos})
                 tween:Play()
-                tween.Completed:Wait()
+                
+                -- Se chegar muito perto, para o tween para não ficar "dançando"
+                if distance < 10 then
+                    tween:Cancel()
+                    LP.Character.HumanoidRootPart.CFrame = targetPos
+                else
+                    tween.Completed:Wait()
+                end
             end
         end
     end)
