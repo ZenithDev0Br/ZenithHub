@@ -1,25 +1,21 @@
---[[
-    ZenithHub Loader
-]]
+-- ZenithHub Loader
 
 if getgenv().ZenithHubLoaded then
-    return warn("ZenithHub already loaded.")
+    return
 end
 
 getgenv().ZenithHubLoaded = true
 
-local Success, Response = pcall(function()
+local ok, result = pcall(function()
     return game:HttpGet("https://raw.githubusercontent.com/ZenithDev0Br/ZenithHub/main/Init.lua")
 end)
 
-if not Success then
-    return warn("Failed to fetch Init.lua")
+if not ok then
+    warn("Failed to load Init.lua")
+    return
 end
 
-local Init = loadstring(Response)
-
-if Init then
-    Init()
-else
-    warn("Failed to execute Init.lua")
+local init = loadstring(result)
+if init then
+    init()
 end
