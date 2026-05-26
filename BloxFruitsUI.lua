@@ -38,14 +38,41 @@ local FarmTab = Window:MakeTab({ Title = "Farm", Icon = "Sword" })
 
 -- 1. Farm Settings
 FarmTab:AddSection("Farm Settings")
-FarmTab:AddDropdown({ Name = "Select Weapon", Options = {"Melee", "Sword", "Devil Fruit", "Gun"}, Default = "Melee", Callback = function(v) _G.SelectedWeapon = v end })
-FarmTab:AddToggle({ Name = "Fast Attack", Default = false, Callback = function(v) getgenv().ZenithHub.Modules.FarmSettings:FastAttack(v) end })
-FarmTab:AddToggle({ Name = "Bring Mobs", Default = false, Callback = function(v) getgenv().ZenithHub.Modules.FarmSettings:BringMobs(v) end })
-FarmTab:AddSlider({ Name = "Tween Speed", Min = 100, Max = 600, Default = 300, Callback = function(v) _G.TweenSpeed = v end })
-FarmTab:AddSlider({ Name = "Attack Height", Min = 0, Max = 20, Default = 5, Callback = function(v) _G.AttackHeight = v end })
+FarmTab:AddDropdown({ 
+    Name = "Select Weapon", 
+    Options = {"Melee", "Sword", "Devil Fruit", "Gun"}, 
+    Default = "Melee", 
+    Callback = function(v) _G.SelectedWeapon = v end 
+})
 
+FarmTab:AddToggle({ 
+    Name = "Fast Attack (Auto Click)", 
+    Default = true, -- AGORA É TRUE POR PADRÃO
+    Callback = function(v) getgenv().ZenithHub.Modules.FarmSettings:FastAttack(v) end 
+})
 
+FarmTab:AddToggle({ 
+    Name = "Bring Mobs (Juntar Monstros)", 
+    Default = true, -- AGORA É TRUE POR PADRÃO
+    Callback = function(v) getgenv().ZenithHub.Modules.FarmSettings:BringMobs(v) end 
+})
 
--- 2. Main Farm
-FarmTab:AddSection("Main Farm")
-FarmTab:AddToggle({ Name = "Auto Farm Level", Default = false, Callback = function(v) getgenv().ZenithHub.Modules.FarmLevel:AutoFarm(v) end })
+-- 2. Movement & Combat Distance
+FarmTab:AddSection("Movement & Combat Distance")
+FarmTab:AddSlider({ 
+    Name = "Tween Speed", 
+    Min = 100, Max = 600, Default = 300, 
+    Callback = function(v) _G.TweenSpeed = v end 
+})
+
+FarmTab:AddSlider({ 
+    Name = "Attack Height (Altura)", 
+    Min = 0, Max = 40, Default = 15, 
+    Callback = function(v) _G.AttackHeight = v end 
+})
+
+FarmTab:AddSlider({ 
+    Name = "Attack Distance (Distância)", 
+    Min = -20, Max = 20, Default = 0, 
+    Callback = function(v) _G.AttackDistance = v end 
+})
