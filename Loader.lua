@@ -24,6 +24,7 @@ load("Main.lua")
 load("Modules/InfoService.lua")
 load("Modules/FarmSettings.lua")
 load("Modules/FarmLevel.lua")
+load("Modules/Quest.lua")
 
 -- UI LAST
 load("BloxFruitsUI.lua")
