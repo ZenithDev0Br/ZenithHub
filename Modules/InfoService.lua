@@ -1,14 +1,8 @@
--- [[ ZENITH HUB - SCRIPT COMPLETO COM FRUTA SPAWNADA E FROZEN ISLAND ]] --
+-- [[ ZENITH HUB - BACKEND ATUALIZADO (InfoService + Bosses) ]] --
 
--- 1. INICIALIZAÇÃO DO AMBIENTE GLOBAL
-if not getgenv().ZenithHub then
-    getgenv().ZenithHub = {}
-end
-if not getgenv().ZenithHub.Modules then
-    getgenv().ZenithHub.Modules = {}
-end
+if not getgenv().ZenithHub then getgenv().ZenithHub = {} end
+if not getgenv().ZenithHub.Modules then getgenv().ZenithHub.Modules = {} end
 
--- Fallback de segurança para o nível do jogador
 if not getgenv().ZenithHub.Core then
     getgenv().ZenithHub.Core = {
         GetLevel = function() 
@@ -21,10 +15,6 @@ if not getgenv().ZenithHub.Core then
 end
 
 local Core = getgenv().ZenithHub.Core
-
--- ============================================================================
--- 2. MÓDULO BACKEND (InfoService)
--- ============================================================================
 local Info = {}
 
 Info.Data = {
@@ -33,11 +23,17 @@ Info.Data = {
     Fruit = "None",
     Mirage = false,
     Kitsune = false,
-    FrozenIsland = false, -- Nova variável para a Frozen Island
-    FruitSpawned = false, -- Nova variável para Fruta no Chão
+    FrozenIsland = false,
+    FruitSpawned = false,
     FullMoon = false,
     Factory = false,
-    MoonProgress = "Verificando..."
+    MoonProgress = "Verificando...",
+    -- Novas variáveis dos Bosses
+    CursedCaptain = false,
+    Darkbeard = false,
+    CakePrince = false,
+    DoughKing = false,
+    RipIndra = false
 }
 
 local Workspace = game:GetService("Workspace")
@@ -45,7 +41,6 @@ local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local LP = Players.LocalPlayer
 
--- Detectar o Sea (Mundo) atual via PlaceId
 function Info:GetSea()
     local id = game.PlaceId
     if id == 2753915549 then return "Sea 1" end
@@ -54,7 +49,6 @@ function Info:GetSea()
     return "Unknown"
 end
 
--- Pega a fruta REAL que comeu e está ativa no personagem
 function Info:GetFruit()
     local foldersToSearch = {"Data", "leaderstats", "Stats", "PlayerData"}
     for _, folderName in ipairs(foldersToSearch) do
@@ -62,113 +56,111 @@ function Info:GetFruit()
         if folder then
             local fruitValue = folder:FindFirstChild("Fruit") or folder:FindFirstChild("DevilFruit")
             if fruitValue and fruitValue.Value ~= "" then
-                local name = tostring(fruitValue.Value):gsub("%-", " ")
-                return name
+                return tostring(fruitValue.Value):gsub("%-", " ")
             end
         end
     end
-    
-    local character = LP.Character
-    if character then
-        for _, v in ipairs(character:GetChildren()) do
-            if v:IsA("Tool") and (v.Name:lower():find("fruit") or v.Name:lower():find("sand")) then
-                return v.Name:gsub("%-", " ")
-            end
-        end
-    end
-    
     return "No Fruit"
 end
 
--- Contador de luas corrigido com filtro curto
 function Info:GetMoonProgress()
     local sky = Lighting:FindFirstChildOfClass("Sky")
     if not sky then return "Céu não encontrado" end
-    
     local texture = tostring(sky.MoonTextureId)
     
-    if texture:find("9431") or texture:find("Full") or texture:find("9013498700") then 
-        return "🌕 É HOJE! (0 luas faltam)"
-    elseif texture:find("9051") or texture:find("9014138839") then 
-        return "¾️ Falta 1 lua (Amanhã)"
-    elseif texture:find("4490") then 
-        return "🌗 Faltam 2 luas"
-    elseif texture:find("0171") then 
-        return "🌘 Faltam 3 luas"
-    elseif texture:find("3656") or texture:find("50625484") then 
-        return "🌑 Faltam 4 luas (Lua Nova)"
-    elseif texture:find("0532") then 
-        return "🌒 Faltam 5 luas"
-    elseif texture:find("50086") or texture:find("4000") or texture:find("9014238216") then 
-        return "🌓 Faltam 6 luas (Crescente)"
-    elseif texture:find("8693") then 
-        return "🌔 Faltam 7 luas"
+    if texture:find("9431") or texture:find("Full") or texture:find("9013498700") then return "🌕 É HOJE! (0 luas faltam)"
+    elseif texture:find("9051") or texture:find("9014138839") then return "¾️ Falta 1 lua (Amanhã)"
+    elseif texture:find("4490") then return "🌗 Faltam 2 luas"
+    elseif texture:find("0171") then return "🌘 Faltam 3 luas"
+    elseif texture:find("3656") or texture:find("50625484") then return "🌑 Faltam 4 luas (Lua Nova)"
+    elseif texture:find("0532") then return "🌒 Faltam 5 luas"
+    elseif texture:find("50086") or texture:find("4000") or texture:find("9014238216") then return "🌓 Faltam 6 luas (Crescente)"
+    elseif texture:find("8693") then return "🌔 Faltam 7 luas"
     end
-    
-    local rawId = texture:match("%d+") or "Sem ID"
-    return "Fase Desconhecida (ID: " .. rawId .. ")"
+    return "Fase Desconhecida"
 end
 
--- Scanner de Mundo Otimizado (Escaneia Ilhas, Eventos e Frutas no chão)
+-- Scanner Avançado de Mundo (Ilhas, Eventos, Frutas e Bosses)
 function Info:ScanWorld()
-    -- 1. Verifica na pasta Map
+    -- 1. Varredura na pasta Map (Ilhas e Eventos Estáticos)
     local mapFolder = Workspace:FindFirstChild("Map")
     if mapFolder then
         for _, v in ipairs(mapFolder:GetChildren()) do
             local n = v.Name:lower()
-            if n:find("mirage") or n:find("mystic") then 
-                self.Data.Mirage = true
-            elseif n:find("kitsune") then 
-                self.Data.Kitsune = true
-            elseif n:find("frozen") then -- Deteta a Frozen Island na pasta Map
-                self.Data.FrozenIsland = true
-            elseif n:find("factory") or n:find("core") then 
-                self.Data.Factory = true
+            if n:find("mirage") or n:find("mystic") then self.Data.Mirage = true
+            elseif n:find("kitsune") then self.Data.Kitsune = true
+            elseif n:find("frozen") then self.Data.FrozenIsland = true
+            elseif n:find("factory") or n:find("core") then self.Data.Factory = true
             end
         end
     end
 
-    -- 2. Verifica diretamente no Workspace (Ilhas e Frutas soltas)
+    -- 2. Varredura direta no Workspace (Procura Bosses vivos e Frutas dropadas)
     for _, v in ipairs(Workspace:GetChildren()) do
         local n = v.Name:lower()
-        if n:find("mirage") or n:find("mystic") then 
-            self.Data.Mirage = true
-        elseif n:find("kitsune") then 
-            self.Data.Kitsune = true
-        elseif n:find("frozen") then -- Deteta a Frozen Island no Workspace
-            self.Data.FrozenIsland = true
-        elseif n:find("factory") and v:FindFirstChild("Core") then 
-            self.Data.Factory = true
-        -- DETETOR DE FRUTA SPAWNADA: Procura por modelos de fruta soltos no chão
+        
+        -- Detecção de Ilhas soltas
+        if n:find("mirage") or n:find("mystic") then self.Data.Mirage = true
+        elseif n:find("kitsune") then self.Data.Kitsune = true
+        elseif n:find("frozen") then self.Data.FrozenIsland = true
+        elseif n:find("factory") and v:FindFirstChild("Core") then self.Data.Factory = true
+        
+        -- Detecção de Fruta dropada no chão
         elseif v:IsA("Tool") and (v.Name:find("Fruit") or v.Name:find("Fruta")) then
             self.Data.FruitSpawned = true
-        elseif v:IsA("Model") and (v.Name:find("Fruit") or v.Name:find("Fruta") or v:FindFirstChild("Handle")) then
-            -- Muitas frutas dropadas ficam como Model contendo um "Handle" e a palavra Fruit
-            if v.Name:find("Fruit") or v.Name:find("Fruta") then
-                self.Data.FruitSpawned = true
+        elseif v:IsA("Model") and (v.Name:find("Fruit") or v.Name:find("Fruta")) then
+            self.Data.FruitSpawned = true
+        
+        -- DETECÇÃO DE BOSSES (Verifica se o modelo do Boss está spawnado e com vida)
+        elseif v:IsA("Model") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+            local bossName = v.Name
+            if bossName == "Cursed Captain" then self.Data.CursedCaptain = true
+            elseif bossName == "Darkbeard" then self.Data.Darkbeard = true
+            elseif bossName == "Cake Prince" then self.Data.CakePrince = true
+            elseif bossName == "Dough King" then self.Data.DoughKing = true
+            elseif bossName == "rip_indra True Form" or bossName == "rip_indra" then self.Data.RipIndra = true
+            end
+        end
+    end
+    
+    -- 3. Checagem extra na pasta de NPCs do jogo (Caso os modelos fiquem escondidos lá)
+    local enemiesFolder = Workspace:FindFirstChild("Enemies") or Workspace:FindFirstChild("NPCs")
+    if enemiesFolder then
+        for _, v in ipairs(enemiesFolder:GetChildren()) do
+            if v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+                local bossName = v.Name
+                if bossName == "Cursed Captain" then self.Data.CursedCaptain = true
+                elseif bossName == "Darkbeard" then self.Data.Darkbeard = true
+                elseif bossName == "Cake Prince" then self.Data.CakePrince = true
+                elseif bossName == "Dough King" then self.Data.DoughKing = true
+                elseif bossName == "rip_indra True Form" or bossName == "rip_indra" then self.Data.RipIndra = true
+                end
             end
         end
     end
 end
 
--- Inicia o Loop interno do InfoService
 function Info:Start()
     task.spawn(function()
         while task.wait(1) do
             local successLevel, level = pcall(function() return Core:GetLevel() end)
-
             self.Data.Sea = self:GetSea()
             self.Data.Fruit = self:GetFruit()
             self.Data.Level = successLevel and level or 0
             self.Data.FullMoon = (Lighting.ClockTime >= 18 or Lighting.ClockTime <= 6)
             self.Data.MoonProgress = self:GetMoonProgress()
 
-            -- Reseta os status antes de re-escanear o mapa
+            -- Reseta os status antes de re-escanear
             self.Data.Mirage = false
             self.Data.Kitsune = false
             self.Data.FrozenIsland = false
             self.Data.FruitSpawned = false
             self.Data.Factory = false
+            self.Data.CursedCaptain = false
+            self.Data.Darkbeard = false
+            self.Data.CakePrince = false
+            self.Data.DoughKing = false
+            self.Data.RipIndra = false
 
             self:ScanWorld()
         end
@@ -177,66 +169,4 @@ end
 
 getgenv().ZenithHub.Modules.InfoService = Info
 Info:Start()
-
--- ============================================================================
--- 3. CRIAÇÃO DA INTERFACE GRÁFICA (UI)
--- ============================================================================
-local Library = loadstring(game:HttpGet(
-    "https://raw.githubusercontent.com/tlredz/Library/refs/heads/main/redz-V5-remake/main.luau"
-))()
-
-local Window = Library:MakeWindow({
-    Title = "Zenith Hub",
-    SubTitle = "Simple Panel",
-    ScriptFolder = "ZenithHub"
-})
-
-local Tab = Window:MakeTab({
-    Title = "Main",
-    Icon = "Home"
-})
-
--- Criando o elemento usando o formato oficial da Wand UI
-local label = Tab:AddParagraph("Status do Jogador e Mundo", "Aguardando sincronização...")
-
--- Loop de atualização visual da interface
-task.spawn(function()
-    while task.wait(1) do
-        local InfoService = getgenv().ZenithHub.Modules.InfoService
-        
-        if InfoService and InfoService.Data then
-            local d = InfoService.Data
-
-            local mirageStatus  = d.Mirage and "🟢 Spawned!" or "🔴 Not Found"
-            local kitsuneStatus = d.Kitsune and "🟢 Spawned!" or "🔴 Not Found"
-            local frozenStatus  = d.FrozenIsland and "🟢 Active!" or "🔴 Not Found" -- Status Frozen Island
-            local fruitSpStatus = d.FruitSpawned and "🟢 SPAWNADA NO CHÃO!" or "🔴 Nenhuma" -- Status Fruta no Chão
-            local factoryStatus = d.Factory and "🟢 Active!" or "🔴 Inactive"
-            local timeStatus    = d.FullMoon and "🌕 Noite" or "☀️ Dia"
-
-            -- Montagem final das strings no painel
-            local text =
-                "Level: " .. tostring(d.Level or 0) .. "\n" ..
-                "Sea: " .. tostring(d.Sea or "Unknown") .. "\n" ..
-                "Fruit: " .. tostring(d.Fruit or "None") .. "\n" ..
-                "----------------------------------\n" ..
-                "Ciclo Lunar: " .. tostring(d.MoonProgress) .. "\n" ..
-                "Período Atual: " .. timeStatus .. "\n" ..
-                "----------------------------------\n" ..
-                "Fruta no Mapa: " .. fruitSpStatus .. "\n" .. -- Linha da fruta no chão
-                "Mirage Island: " .. mirageStatus .. "\n" ..
-                "Kitsune Island: " .. kitsuneStatus .. "\n" ..
-                "Frozen Island: " .. frozenStatus .. "\n" .. -- Linha da Frozen Island
-                "Factory Event: " .. factoryStatus
-
-            -- Modifica usando o método correto da documentação (SetDescription)
-            pcall(function()
-                label:SetDescription(text)
-            end)
-        else
-            pcall(function()
-                label:SetDescription("Aguardando InfoService carregar...")
-            end)
-        end
-    end
-end)
+print("[ZenithHub] Módulo de Bosses e Mapa ativo!")
