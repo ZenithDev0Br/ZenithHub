@@ -41,23 +41,11 @@ FarmTab:AddSection("Farm Settings")
 FarmTab:AddDropdown({ Name = "Select Weapon", Options = {"Melee", "Sword", "Devil Fruit", "Gun"}, Default = "Melee", Callback = function(v) _G.SelectedWeapon = v end })
 FarmTab:AddToggle({ Name = "Fast Attack", Default = false, Callback = function(v) getgenv().ZenithHub.Modules.FarmSettings:FastAttack(v) end })
 FarmTab:AddToggle({ Name = "Bring Mobs", Default = false, Callback = function(v) getgenv().ZenithHub.Modules.FarmSettings:BringMobs(v) end })
-
--- 2. Movement Settings (Tween & Height)
-FarmTab:AddSection("Movement Settings")
 FarmTab:AddSlider({ Name = "Tween Speed", Min = 100, Max = 600, Default = 300, Callback = function(v) _G.TweenSpeed = v end })
 FarmTab:AddSlider({ Name = "Attack Height", Min = 0, Max = 20, Default = 5, Callback = function(v) _G.AttackHeight = v end })
 
--- 3. Main Farm
+
+
+-- 2. Main Farm
 FarmTab:AddSection("Main Farm")
 FarmTab:AddToggle({ Name = "Auto Farm Level", Default = false, Callback = function(v) getgenv().ZenithHub.Modules.FarmLevel:AutoFarm(v) end })
-
--- 4. Materials
-FarmTab:AddSection("Automations & Materials")
-FarmTab:AddToggle({ Name = "Auto Farm Bones", Default = false, Callback = function(v) _G.AutoFarmBones = v end })
-FarmTab:AddToggle({ Name = "Auto Attack Bosses", Default = false, Callback = function(v) _G.AutoAnnihilateBosses = v end })
-
--- ============================================================================
--- INITIALIZATION
--- ============================================================================
--- Certifique-se de que os módulos estão carregados no getgenv().ZenithHub.Modules
--- antes de rodar este script de UI.
