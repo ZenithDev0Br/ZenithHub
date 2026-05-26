@@ -3,20 +3,12 @@ local Core = ZenithHub.Core
 
 local Info = {}
 
-local Players = game:GetService("Players")
-local LP = Players.LocalPlayer
-
 Info.Data = {
     Level = 0,
     Sea = "Unknown",
-    Fruit = "None",
-    Mirage = false,
-    Kitsune = false,
-    Factory = false,
-    FullMoon = false
+    Fruit = "None"
 }
 
--- SEA
 function Info:GetSea()
     local id = game.PlaceId
 
@@ -27,9 +19,8 @@ function Info:GetSea()
     return "Unknown"
 end
 
--- FRUIT
 function Info:GetFruit()
-    local bp = LP:FindFirstChild("Backpack")
+    local bp = game.Players.LocalPlayer:FindFirstChild("Backpack")
     if not bp then return "None" end
 
     for _,v in pairs(bp:GetChildren()) do
@@ -41,46 +32,20 @@ function Info:GetFruit()
     return "None"
 end
 
--- WORLD SCAN (LIGHT)
-function Info:Scan()
-    for _,v in ipairs(workspace:GetChildren()) do
-        if v:IsA("Model") then
-            local n = v.Name:lower()
-
-            if n:find("mirage") then
-                self.Data.Mirage = true
-            elseif n:find("kitsune") then
-                self.Data.Kitsune = true
-            elseif n:find("factory") then
-                self.Data.Factory = true
-            end
-        end
-    end
-end
-
--- LOOP (AGORA PERMITIDO SÓ NO MODULES)
 function Info:Start()
 
     task.spawn(function()
-        while task.wait(1) do
-
+        while task.wait(1.5) do
             self.Data.Level = Core:GetLevel()
             self.Data.Sea = self:GetSea()
             self.Data.Fruit = self:GetFruit()
-            self.Data.FullMoon = (game:GetService("Lighting").ClockTime < 6 or game:GetService("Lighting").ClockTime > 18)
-
-            self.Data.Mirage = false
-            self.Data.Kitsune = false
-            self.Data.Factory = false
-
-            self:Scan()
-
         end
     end)
 
 end
 
-getgenv().ZenithHub.Modules.InfoService = Info
+ZenithHub.Modules = ZenithHub.Modules or {}
+ZenithHub.Modules.InfoService = Info
 
 Info:Start()
 
