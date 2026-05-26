@@ -16,8 +16,8 @@ local Tab = Window:MakeTab({
     Icon = "Home"
 })
 
--- Usando AddTextLabel, que costuma ser mais amigável para atualizações contínuas
-local label = Tab:AddTextLabel("Loading...")
+-- Criamos o parágrafo original
+local label = Tab:AddParagraph("Status do Jogador e Mundo", "Aguardando sincronização...")
 
 task.spawn(function()
     while task.wait(1) do
@@ -27,7 +27,7 @@ task.spawn(function()
             local d = InfoService.Data
 
             local mirageStatus  = d.Mirage and "🟢 Spawned!" or "🔴 Not Found"
-            local kitsuneStatus  = d.Kitsune and "🟢 Spawned!" or "🔴 Not Found"
+            local kitsuneStatus = d.Kitsune and "🟢 Spawned!" or "🔴 Not Found"
             local factoryStatus = d.Factory and "🟢 Active!" or "🔴 Inactive"
             local timeStatus    = d.FullMoon and "🌕 Night" or "☀️ Day"
 
@@ -41,19 +41,13 @@ task.spawn(function()
                 "Factory Event: " .. factoryStatus .. "\n" ..
                 "World Time: " .. timeStatus
 
-            -- Tenta os métodos mais comuns para atualizar o texto na Redz Lib
+            -- Agora usando a função exata da documentação da Wand UI / Redz V5
             pcall(function()
-                if label.SetText then
-                    label:SetText(text)
-                elseif label.SetDesc then
-                    label:SetDesc(text)
-                elseif label.Set then
-                    label:Set(text)
-                end
+                label:SetDescription(text)
             end)
         else
             pcall(function()
-                if label.SetText then label:SetText("Aguardando InfoService carregar...") end
+                label:SetDescription("Aguardando InfoService carregar...")
             end)
         end
     end
