@@ -1,5 +1,10 @@
-local Core = getgenv().ZenithHub.Core
+local ZenithHub = getgenv().ZenithHub
+local Core = ZenithHub.Core
+
 local Info = {}
+
+local Players = game:GetService("Players")
+local LP = Players.LocalPlayer
 
 Info.Data = {
     Level = 0,
@@ -7,17 +12,11 @@ Info.Data = {
     Fruit = "None",
     Mirage = false,
     Kitsune = false,
-    FullMoon = false,
-    Factory = false
+    Factory = false,
+    FullMoon = false
 }
 
-local Workspace = game:GetService("Workspace")
-local Lighting = game:GetService("Lighting")
-local Players = game:GetService("Players")
-
-local LP = Players.LocalPlayer
-
--- Sea detect (real via PlaceId)
+-- SEA
 function Info:GetSea()
     local id = game.PlaceId
 
@@ -28,7 +27,7 @@ function Info:GetSea()
     return "Unknown"
 end
 
--- Fruit detect real (Backpack)
+-- FRUIT
 function Info:GetFruit()
     local bp = LP:FindFirstChild("Backpack")
     if not bp then return "None" end
@@ -42,47 +41,39 @@ function Info:GetFruit()
     return "None"
 end
 
--- World scanner REAL
-function Info:ScanWorld()
-    for _,v in ipairs(Workspace:GetDescendants()) do
+-- WORLD SCAN (LIGHT)
+function Info:Scan()
+    for _,v in ipairs(workspace:GetChildren()) do
         if v:IsA("Model") then
             local n = v.Name:lower()
 
             if n:find("mirage") then
                 self.Data.Mirage = true
-            end
-
-            if n:find("kitsune") then
+            elseif n:find("kitsune") then
                 self.Data.Kitsune = true
-            end
-
-            if n:find("factory") then
+            elseif n:find("factory") then
                 self.Data.Factory = true
             end
         end
     end
 end
 
--- Full moon REAL (visual cycle only)
-function Info:GetFullMoon()
-    return Lighting.ClockTime >= 18 or Lighting.ClockTime <= 6
-end
-
+-- LOOP (AGORA PERMITIDO SÓ NO MODULES)
 function Info:Start()
 
     task.spawn(function()
         while task.wait(1) do
 
+            self.Data.Level = Core:GetLevel()
             self.Data.Sea = self:GetSea()
             self.Data.Fruit = self:GetFruit()
-            self.Data.Level = Core:GetLevel()
-            self.Data.FullMoon = self:GetFullMoon()
+            self.Data.FullMoon = (game:GetService("Lighting").ClockTime < 6 or game:GetService("Lighting").ClockTime > 18)
 
             self.Data.Mirage = false
             self.Data.Kitsune = false
             self.Data.Factory = false
 
-            self:ScanWorld()
+            self:Scan()
 
         end
     end)
@@ -90,5 +81,7 @@ function Info:Start()
 end
 
 getgenv().ZenithHub.Modules.InfoService = Info
+
+Info:Start()
 
 return Info
