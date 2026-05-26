@@ -1,9 +1,14 @@
--- [[ ZENITH HUB - BACKEND (InfoService) ]] --
+-- [[ ZENITH HUB - SCRIPT COMPLETO, ATUALIZADO E UNIFICADO ]] --
 
-if not getgenv().ZenithHub then getgenv().ZenithHub = {} end
-if not getgenv().ZenithHub.Modules then getgenv().ZenithHub.Modules = {} end
+-- 1. INICIALIZAÇÃO DO AMBIENTE GLOBAL
+if not getgenv().ZenithHub then
+    getgenv().ZenithHub = {}
+end
+if not getgenv().ZenithHub.Modules then
+    getgenv().ZenithHub.Modules = {}
+end
 
--- Fallback para o Core do teu script principal não quebrar
+-- Fallback de segurança para o nível do jogador
 if not getgenv().ZenithHub.Core then
     getgenv().ZenithHub.Core = {
         GetLevel = function() 
@@ -16,6 +21,10 @@ if not getgenv().ZenithHub.Core then
 end
 
 local Core = getgenv().ZenithHub.Core
+
+-- ============================================================================
+-- 2. MÓDULO BACKEND (InfoService)
+-- ============================================================================
 local Info = {}
 
 Info.Data = {
@@ -34,6 +43,7 @@ local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local LP = Players.LocalPlayer
 
+-- Detectar o Sea (Mundo) atual via PlaceId
 function Info:GetSea()
     local id = game.PlaceId
     if id == 2753915549 then return "Sea 1" end
@@ -42,83 +52,94 @@ function Info:GetSea()
     return "Unknown"
 end
 
+-- Pega a fruta REAL que você comeu e está ativa no seu personagem
 function Info:GetFruit()
-    local function findFruitIn(parent)
-        if not parent then return nil end
-        for _, v in pairs(parent:GetChildren()) do
-            if v:IsA("Tool") and (v.Name:find("Fruit") or v.Name:find("Physical") or v.Name:find("Fruta")) then
-                return v.Name
-            end
-        end
-        return nil
+    local data = LP:FindFirstChild("Data")
+    local fruitValue = data and data:FindFirstChild("Fruit")
+    
+    if fruitValue and fruitValue.Value ~= "" then
+        -- Formata o nome para remover traços e deixar mais limpo (Ex: "Sand-Fruit" vira "Sand Fruit")
+        local name = fruitValue.Value:gsub("%-", " ")
+        return name
     end
-    return findFruitIn(LP.Character) or findFruitIn(LP:FindFirstChild("Backpack")) or "None"
+    return "No Fruit"
 end
 
--- Substitui apenas esta função no teu InfoService:
+-- Contador de luas corrigido com filtro curto e com a ID capturada na sua print
 function Info:GetMoonProgress()
     local sky = Lighting:FindFirstChildOfClass("Sky")
     if not sky then return "Céu não encontrado" end
     
     local texture = tostring(sky.MoonTextureId)
     
-    -- Filtro inteligente: procura o final do número da ID (assim não importa o começo do link)
-    if texture:find("9431") or texture:find("Full") or texture:find("9013498700") then
+    if texture:find("9431") or texture:find("Full") or texture:find("9013498700") then 
         return "🌕 É HOJE! (0 luas faltam)"
-    elseif texture:find("9051") or texture:find("9014138839") then
+    elseif texture:find("9051") or texture:find("9014138839") then 
         return "¾️ Falta 1 lua (Amanhã)"
-    elseif texture:find("4490") then
+    elseif texture:find("4490") then 
         return "🌗 Faltam 2 luas"
-    elseif texture:find("0171") then
+    elseif texture:find("0171") then 
         return "🌘 Faltam 3 luas"
-    elseif texture:find("3656") or texture:find("50625484") then
+    elseif texture:find("3656") or texture:find("50625484") then 
         return "🌑 Faltam 4 luas (Lua Nova)"
-    elseif texture:find("0532") then
+    elseif texture:find("0532") then 
         return "🌒 Faltam 5 luas"
-    elseif texture:find("4000") or texture:find("9014238216") then
-        return "🌓 Faltam 6 luas"
-    elseif texture:find("8693") then
+    elseif texture:find("50086") or texture:find("4000") or texture:find("9014238216") then 
+        return "🌓 Faltam 6 luas (Crescente)" -- ID da sua print reconhecida aqui
+    elseif texture:find("8693") then 
         return "🌔 Faltam 7 luas"
     end
     
-    -- Fallback de emergência (caso o jogo mude de ID, ele mostra o número bruto para sabermos qual é)
     local rawId = texture:match("%d+") or "Sem ID"
-    return "Fase Antiga/Nova (ID: " .. rawId .. ")"
+    return "Fase Desconhecida (ID: " .. rawId .. ")"
 end
 
+-- Scanner de Mundo Otimizado (Zero Lag)
 function Info:ScanWorld()
     local mapFolder = Workspace:FindFirstChild("Map")
+    
     if mapFolder then
         for _, v in ipairs(mapFolder:GetChildren()) do
             local n = v.Name:lower()
-            if n:find("mirage") or n:find("mystic") then self.Data.Mirage = true
-            elseif n:find("kitsune") then self.Data.Kitsune = true
-            elseif n:find("factory") or n:find("core") then self.Data.Factory = true
+            if n:find("mirage") or n:find("mystic") then 
+                self.Data.Mirage = true
+            elseif n:find("kitsune") then 
+                self.Data.Kitsune = true
+            elseif n:find("factory") or n:find("core") then 
+                self.Data.Factory = true
             end
         end
     end
+
     for _, v in ipairs(Workspace:GetChildren()) do
         local n = v.Name:lower()
-        if n:find("mirage") or n:find("mystic") then self.Data.Mirage = true
-        elseif n:find("kitsune") then self.Data.Kitsune = true
-        elseif n:find("factory") and v:FindFirstChild("Core") then self.Data.Factory = true
+        if n:find("mirage") or n:find("mystic") then 
+            self.Data.Mirage = true
+        elseif n:find("kitsune") then 
+            self.Data.Kitsune = true
+        elseif n:find("factory") and v:FindFirstChild("Core") then 
+            self.Data.Factory = true
         end
     end
 end
 
+-- Inicia o Loop interno do InfoService
 function Info:Start()
     task.spawn(function()
         while task.wait(1) do
             local successLevel, level = pcall(function() return Core:GetLevel() end)
+
             self.Data.Sea = self:GetSea()
             self.Data.Fruit = self:GetFruit()
             self.Data.Level = successLevel and level or 0
             self.Data.FullMoon = (Lighting.ClockTime >= 18 or Lighting.ClockTime <= 6)
             self.Data.MoonProgress = self:GetMoonProgress()
-            
+
+            -- Reseta os status antes de re-escanear o mapa
             self.Data.Mirage = false
             self.Data.Kitsune = false
             self.Data.Factory = false
+
             self:ScanWorld()
         end
     end)
@@ -126,4 +147,62 @@ end
 
 getgenv().ZenithHub.Modules.InfoService = Info
 Info:Start()
-print("[ZenithHub] InfoService iniciado com sucesso!")
+
+-- ============================================================================
+-- 3. CRIAÇÃO DA INTERFACE GRÁFICA (UI)
+-- ============================================================================
+local Library = loadstring(game:HttpGet(
+    "https://raw.githubusercontent.com/tlredz/Library/refs/heads/main/redz-V5-remake/main.luau"
+))()
+
+local Window = Library:MakeWindow({
+    Title = "Zenith Hub",
+    SubTitle = "Simple Panel",
+    ScriptFolder = "ZenithHub"
+})
+
+local Tab = Window:MakeTab({
+    Title = "Main",
+    Icon = "Home"
+})
+
+-- Criando o elemento usando o formato oficial da Wand UI
+local label = Tab:AddParagraph("Status do Jogador e Mundo", "Aguardando sincronização...")
+
+-- Loop de atualização visual da interface
+task.spawn(function()
+    while task.wait(1) do
+        local InfoService = getgenv().ZenithHub.Modules.InfoService
+        
+        if InfoService and InfoService.Data then
+            local d = InfoService.Data
+
+            local mirageStatus  = d.Mirage and "🟢 Spawned!" or "🔴 Not Found"
+            local kitsuneStatus = d.Kitsune and "🟢 Spawned!" or "🔴 Not Found"
+            local factoryStatus = d.Factory and "🟢 Active!" or "🔴 Inactive"
+            local timeStatus    = d.FullMoon and "🌕 Noite" or "☀️ Dia"
+
+            -- Montagem final das strings no painel
+            local text =
+                "Level: " .. tostring(d.Level or 0) .. "\n" ..
+                "Sea: " .. tostring(d.Sea or "Unknown") .. "\n" ..
+                "Fruit: " .. tostring(d.Fruit or "None") .. "\n" ..
+                "----------------------------------\n" ..
+                "Ciclo Lunar: " .. tostring(d.MoonProgress) .. "\n" ..
+                "Período Atual: " .. timeStatus .. "\n" ..
+                "----------------------------------\n" ..
+                "Mirage Island: " .. mirageStatus .. "\n" ..
+                "Kitsune Island: " .. kitsuneStatus .. "\n" ..
+                "Factory Event: " .. factoryStatus
+
+            -- Modifica usando o método correto da documentação (SetDescription)
+            pcall(function()
+                label:SetDescription(text)
+            end)
+        else
+            pcall(function()
+                label:SetDescription("Aguardando InfoService carregar...")
+            end)
+        end
+    end
+end)
