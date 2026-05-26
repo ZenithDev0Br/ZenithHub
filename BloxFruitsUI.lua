@@ -8,7 +8,7 @@ local Library = loadstring(game:HttpGet(
 local Window = Library:MakeWindow({
     Title = "Zenith Hub",
     SubTitle = "Blox Fruits",
-    ScriptFolder = "by ZenithHub"
+    ScriptFolder = "ZenithHub"
 })
 
 local Tab = Window:MakeTab({
