@@ -1,23 +1,28 @@
-print("UI START")
-
 local Library = loadstring(game:HttpGet(
     "https://raw.githubusercontent.com/tlredz/Library/refs/heads/main/redz-V5-remake/main.luau"
 ))()
 
-print("LIB LOADED")
-
 local Window = Library:MakeWindow({
     Title = "Zenith Hub",
-    SubTitle = "Test",
+    SubTitle = "UI System",
     ScriptFolder = "ZenithHub"
 })
 
-print("WINDOW CREATED")
-
-Window:Notify({
-    Title = "Zenith",
-    Content = "Loaded",
-    Duration = 5
+local Tab = Window:MakeTab({
+    Title = "Main",
+    Icon = "Home"
 })
 
-print("UI END")
+Tab:AddToggle({
+    Name = "Enable System",
+    Default = false,
+    Callback = function(v)
+        getgenv().ZenithHub.Settings.Enabled = v
+    end
+})
+
+Window:Notify({
+    Title = "Loaded",
+    Content = "UI initialized successfully",
+    Duration = 5
+})
