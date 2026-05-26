@@ -55,21 +55,35 @@ function Info:GetFruit()
     return findFruitIn(LP.Character) or findFruitIn(LP:FindFirstChild("Backpack")) or "None"
 end
 
+-- Substitui apenas esta função no teu InfoService:
 function Info:GetMoonProgress()
     local sky = Lighting:FindFirstChildOfClass("Sky")
     if not sky then return "Céu não encontrado" end
-    local texture = sky.MoonTextureId
     
-    if texture:find("9709149431") then return "🌕 É HOJE! (0 luas faltam)"
-    elseif texture:find("9709149051") then return "🌖 Falta 1 lua (Amanhã)"
-    elseif texture:find("9709144490") then return "🌗 Faltam 2 luas"
-    elseif texture:find("9709150171") then return "🌘 Faltam 3 luas"
-    elseif texture:find("9709143656") then return "🌑 Faltam 4 luas (Lua Nova)"
-    elseif texture:find("9709150532") then return "🌒 Faltam 5 luas"
-    elseif texture:find("9709144000") then return "🌓 Faltam 6 luas"
-    elseif texture:find("9709148693") then return "🌔 Faltam 7 luas"
+    local texture = tostring(sky.MoonTextureId)
+    
+    -- Filtro inteligente: procura o final do número da ID (assim não importa o começo do link)
+    if texture:find("9431") or texture:find("Full") or texture:find("9013498700") then
+        return "🌕 É HOJE! (0 luas faltam)"
+    elseif texture:find("9051") or texture:find("9014138839") then
+        return "¾️ Falta 1 lua (Amanhã)"
+    elseif texture:find("4490") then
+        return "🌗 Faltam 2 luas"
+    elseif texture:find("0171") then
+        return "🌘 Faltam 3 luas"
+    elseif texture:find("3656") or texture:find("50625484") then
+        return "🌑 Faltam 4 luas (Lua Nova)"
+    elseif texture:find("0532") then
+        return "🌒 Faltam 5 luas"
+    elseif texture:find("4000") or texture:find("9014238216") then
+        return "🌓 Faltam 6 luas"
+    elseif texture:find("8693") then
+        return "🌔 Faltam 7 luas"
     end
-    return "Desconhecido"
+    
+    -- Fallback de emergência (caso o jogo mude de ID, ele mostra o número bruto para sabermos qual é)
+    local rawId = texture:match("%d+") or "Sem ID"
+    return "Fase Antiga/Nova (ID: " .. rawId .. ")"
 end
 
 function Info:ScanWorld()
