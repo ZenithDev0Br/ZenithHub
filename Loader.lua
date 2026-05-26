@@ -1,35 +1,31 @@
-if getgenv().ZenithHubLoaded then
-    return
-end
+if _G.ZenithHubLoading then return end
+_G.ZenithHubLoading = true
 
-getgenv().ZenithHubLoaded = true
+local BASE = "https://raw.githubusercontent.com/ZenithDev0Br/ZenithHub/main/"
 
-local BaseURL = "https://raw.githubusercontent.com/ZenithDev0Br/ZenithHub/main/"
-
-local function Load(file)
+local function load(file)
     local ok, res = pcall(function()
-        return loadstring(game:HttpGet(BaseURL .. file))()
+        return game:HttpGet(BASE .. file)
     end)
 
     if not ok then
-        warn("Load failed:", file)
-        return nil
+        warn("[ZenithHub] Failed:", file)
+        return
     end
 
-    return res
+    local fn = loadstring(res)
+    if fn then fn() end
 end
 
 -- CORE FIRST
-getgenv().ZenithHub = {}
-ZenithHub.Modules = {}
-ZenithHub.Settings = {}
-
-ZenithHub.Core = Load("Main.lua")
+load("Main.lua")
 
 -- MODULES
-Load("Modules/InfoService.lua")
+load("Modules/InfoService.lua")
 
 -- UI LAST
-Load("BloxFruitsUI.lua")
+load("BloxFruitsUI.lua")
 
-print("ZenithHub Loaded")
+_G.ZenithHubLoading = false
+
+print("[ZenithHub] Loaded")
