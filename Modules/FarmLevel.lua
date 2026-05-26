@@ -42,11 +42,12 @@ function FarmLevel:AutoFarm(enabled)
 
     task.spawn(function()
         while _G.AutoFarmLevel and task.wait() do
-            -- Chama o novo MÓDULO DE QUEST
+            -- Chama o módulo de Quest
             local QuestModule = getgenv().ZenithHub.Modules.Quest
             if not QuestModule then task.wait(1); continue end
             
-            local myLevel = LP.leaderstats.Level.Value
+            -- CORREÇÃO: Usando a pasta 'Data' ao invés de 'leaderstats' para pegar o Level
+            local myLevel = LP.Data.Level.Value
             local qData = QuestModule:GetCurrentQuest(myLevel)
             _G.CurrentMobName = qData.Mob 
             
@@ -79,7 +80,7 @@ function FarmLevel:AutoFarm(enabled)
             else
                 -- SE NÃO TEM A QUEST, MANDA PEGAR!
                 QuestModule:TakeQuest(qData)
-                task.wait(0.5) -- Pausa rápida para o servidor processar a quest
+                task.wait(0.5)
             end
         end
     end)
