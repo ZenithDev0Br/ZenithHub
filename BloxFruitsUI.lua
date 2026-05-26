@@ -76,3 +76,11 @@ FarmTab:AddSlider({
     Min = -20, Max = 20, Default = 0, 
     Callback = function(v) _G.AttackDistance = v end 
 })
+
+-- 2. Main Farm
+FarmTab:AddSection("Main Farm")
+FarmTab:AddToggle({ 
+    Name = "Auto Farm Level", 
+    Default = false, 
+    Callback = function(v) getgenv().ZenithHub.Modules.FarmLevel:AutoFarm(v) end 
+})
