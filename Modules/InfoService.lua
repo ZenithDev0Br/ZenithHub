@@ -1,15 +1,9 @@
--- [[ ZENITH HUB - SCRIPT COMPLETO OTIMIZADO ]] --
+-- [[ ZENITH HUB - BACKEND (InfoService) ]] --
 
--- 1. INICIALIZAÇÃO DO AMBIENTE GLOBAL
-if not getgenv().ZenithHub then
-    getgenv().ZenithHub = {}
-end
-if not getgenv().ZenithHub.Modules then
-    getgenv().ZenithHub.Modules = {}
-end
+if not getgenv().ZenithHub then getgenv().ZenithHub = {} end
+if not getgenv().ZenithHub.Modules then getgenv().ZenithHub.Modules = {} end
 
--- Proteção: Caso o seu script principal de 'Core' ainda não tenha carregado,
--- criamos um fallback para o GetLevel não quebrar o script.
+-- Fallback para o Core do teu script principal não quebrar
 if not getgenv().ZenithHub.Core then
     getgenv().ZenithHub.Core = {
         GetLevel = function() 
@@ -22,10 +16,6 @@ if not getgenv().ZenithHub.Core then
 end
 
 local Core = getgenv().ZenithHub.Core
-
--- ============================================================================
--- 2. MÓDULO BACKEND (InfoService)
--- ============================================================================
 local Info = {}
 
 Info.Data = {
@@ -35,7 +25,8 @@ Info.Data = {
     Mirage = false,
     Kitsune = false,
     FullMoon = false,
-    Factory = false
+    Factory = false,
+    MoonProgress = "Verificando..."
 }
 
 local Workspace = game:GetService("Workspace")
@@ -43,7 +34,6 @@ local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local LP = Players.LocalPlayer
 
--- Detectar o Sea (Mundo) atual
 function Info:GetSea()
     local id = game.PlaceId
     if id == 2753915549 then return "Sea 1" end
@@ -52,7 +42,6 @@ function Info:GetSea()
     return "Unknown"
 end
 
--- Detectar Fruta na mão ou no inventário
 function Info:GetFruit()
     local function findFruitIn(parent)
         if not parent then return nil end
@@ -66,123 +55,61 @@ function Info:GetFruit()
     return findFruitIn(LP.Character) or findFruitIn(LP:FindFirstChild("Backpack")) or "None"
 end
 
--- Scanner de Mundo Otimizado (Zero Lag)
+function Info:GetMoonProgress()
+    local sky = Lighting:FindFirstChildOfClass("Sky")
+    if not sky then return "Céu não encontrado" end
+    local texture = sky.MoonTextureId
+    
+    if texture:find("9709149431") then return "🌕 É HOJE! (0 luas faltam)"
+    elseif texture:find("9709149051") then return "🌖 Falta 1 lua (Amanhã)"
+    elseif texture:find("9709144490") then return "🌗 Faltam 2 luas"
+    elseif texture:find("9709150171") then return "🌘 Faltam 3 luas"
+    elseif texture:find("9709143656") then return "🌑 Faltam 4 luas (Lua Nova)"
+    elseif texture:find("9709150532") then return "🌒 Faltam 5 luas"
+    elseif texture:find("9709144000") then return "🌓 Faltam 6 luas"
+    elseif texture:find("9709148693") then return "🌔 Faltam 7 luas"
+    end
+    return "Desconhecido"
+end
+
 function Info:ScanWorld()
     local mapFolder = Workspace:FindFirstChild("Map")
-    
-    -- Escaneia a pasta interna onde eventos costumam nascer
     if mapFolder then
         for _, v in ipairs(mapFolder:GetChildren()) do
             local n = v.Name:lower()
-            if n:find("mirage") or n:find("mystic") then
-                self.Data.Mirage = true
-            elseif n:find("kitsune") then
-                self.Data.Kitsune = true
-            elseif n:find("factory") or n:find("core") then
-                self.Data.Factory = true
+            if n:find("mirage") or n:find("mystic") then self.Data.Mirage = true
+            elseif n:find("kitsune") then self.Data.Kitsune = true
+            elseif n:find("factory") or n:find("core") then self.Data.Factory = true
             end
         end
     end
-
-    -- Escaneia a superfície do Workspace por garantia (Super leve)
     for _, v in ipairs(Workspace:GetChildren()) do
         local n = v.Name:lower()
-        if n:find("mirage") or n:find("mystic") then
-            self.Data.Mirage = true
-        elseif n:find("kitsune") then
-            self.Data.Kitsune = true
-            -- Se achar a fábrica solta no Workspace principal do Sea 2
-            -- Só ativa se o Core do evento estiver ativo
-            if n:find("factory") and v:FindFirstChild("Core") then 
-                self.Data.Factory = true
-            end
+        if n:find("mirage") or n:find("mystic") then self.Data.Mirage = true
+        elseif n:find("kitsune") then self.Data.Kitsune = true
+        elseif n:find("factory") and v:FindFirstChild("Core") then self.Data.Factory = true
         end
     end
 end
 
--- Ciclo de dia/noite simples
-function Info:GetFullMoon()
-    return Lighting.ClockTime >= 18 or Lighting.ClockTime <= 6
-end
-
--- Inicia o Loop interno de atualização do InfoService
 function Info:Start()
     task.spawn(function()
         while task.wait(1) do
             local successLevel, level = pcall(function() return Core:GetLevel() end)
-
             self.Data.Sea = self:GetSea()
             self.Data.Fruit = self:GetFruit()
             self.Data.Level = successLevel and level or 0
-            self.Data.FullMoon = self:GetFullMoon()
-
-            -- Reseta os status antes de checar novamente
+            self.Data.FullMoon = (Lighting.ClockTime >= 18 or Lighting.ClockTime <= 6)
+            self.Data.MoonProgress = self:GetMoonProgress()
+            
             self.Data.Mirage = false
             self.Data.Kitsune = false
             self.Data.Factory = false
-
             self:ScanWorld()
         end
     end)
 end
 
--- Registra e inicializa o serviço
 getgenv().ZenithHub.Modules.InfoService = Info
 Info:Start()
-
--- ============================================================================
--- 3. CRIAÇÃO DA INTERFACE GRÁFICA (UI)
--- ============================================================================
-local Library = loadstring(game:HttpGet(
-    "https://raw.githubusercontent.com/tlredz/Library/refs/heads/main/redz-V5-remake/main.luau"
-))()
-
-local Window = Library:MakeWindow({
-    Title = "Zenith Hub",
-    SubTitle = "Simple Panel",
-    ScriptFolder = "ZenithHub"
-})
-
-local Tab = Window:MakeTab({
-    Title = "Main",
-    Icon = "Home"
-})
-
-local label = Tab:AddParagraph("Info", "Loading...")
-
--- Loop da UI: Lê os dados salvos no InfoService e exibe na tela
-task.spawn(function()
-    while task.wait(1) do
-        local InfoService = getgenv().ZenithHub.Modules.InfoService
-        
-        if InfoService and InfoService.Data then
-            local d = InfoService.Data
-
-            -- Conversão visual de booleanos para status limpos
-            local mirageStatus  = d.Mirage and "🟢 Spawned!" or "🔴 Not Found"
-            local kitsuneStatus  = d.Kitsune and "🟢 Spawned!" or "🔴 Not Found"
-            local factoryStatus = d.Factory and "🟢 Active!" or "🔴 Inactive"
-            local timeStatus    = d.FullMoon and "🌕 Night" or "☀️ Day"
-
-            -- Montagem do texto final
-            local text =
-                "Level: " .. tostring(d.Level or 0) .. "\n" ..
-                "Sea: " .. tostring(d.Sea or "Unknown") .. "\n" ..
-                "Fruit: " .. tostring(d.Fruit or "None") .. "\n" ..
-                "----------------------------------\n" ..
-                "Mirage Island: " .. mirageStatus .. "\n" ..
-                "Kitsune Island: " .. kitsuneStatus .. "\n" ..
-                "Factory Event: " .. factoryStatus .. "\n" ..
-                "World Time: " .. timeStatus
-
-            -- pcall de segurança para atualizar o texto da label
-            pcall(function()
-                label:Set(text)
-            end)
-        else
-            pcall(function()
-                label:Set("Aguardando InfoService carregar...")
-            end)
-        end
-    end
-end)
+print("[ZenithHub] InfoService iniciado com sucesso!")
