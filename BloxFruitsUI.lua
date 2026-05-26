@@ -1,185 +1,63 @@
--- [[ ZENITH HUB - FRONTEND ]] --
+-- [[ ZENITH HUB - FRONTEND COMPLETO ]] --
 
-local Library = loadstring(game:HttpGet(
-    "https://raw.githubusercontent.com/tlredz/Library/refs/heads/main/redz-V5-remake/main.luau"
-))()
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/tlredz/Library/refs/heads/main/redz-V5-remake/main.luau"))()
 
 local Window = Library:MakeWindow({
     Title = "Zenith Hub",
-    SubTitle = "Simple Panel",
+    SubTitle = "Complete Panel",
     ScriptFolder = "ZenithHub"
 })
 
--- MAIN TAB
-local Tab = Window:MakeTab({
-    Title = "Main",
-    Icon = "Home"
-})
-
--- FARM TAB
-local FarmTab = Window:MakeTab({
-    Title = "Farm",
-    Icon = "Sword"
-})
-
--- ═══════════════════════════════
--- FARM SETTINGS
--- ═══════════════════════════════
-
-FarmTab:AddSection("Farm Settings")
-
-_G.SelectedWeapon = "Melee"
-
-FarmTab:AddDropdown({
-    Name = "Select Weapon",
-    Options = {"Melee", "Sword", "Devil Fruit", "Gun"},
-    Default = "Melee",
-    Callback = function(WeaponSelected)
-        _G.SelectedWeapon = WeaponSelected
-    end
-})
-
-_G.FastAttack = false
-
-FarmTab:AddToggle({
-    Name = "Fast Attack (Auto Click)",
-    Default = false,
-    Callback = function(Value)
-        _G.FastAttack = Value
-    end
-})
-
-_G.BringMobs = false
-
-FarmTab:AddToggle({
-    Name = "Bring Mobs (Juntar Monstros)",
-    Default = false,
-    Callback = function(Value)
-        _G.BringMobs = Value
-    end
-})
-
--- ═══════════════════════════════
--- MAIN FARM
--- ═══════════════════════════════
-
-FarmTab:AddSection("Main Farm")
-
-_G.AutoFarmLevel = false
-
-FarmTab:AddToggle({
-    Name = "Auto Farm Level",
-    Default = false,
-    Callback = function(Value)
-        _G.AutoFarmLevel = Value
-    end
-})
-
--- ═══════════════════════════════
--- MATERIALS
--- ═══════════════════════════════
-
-FarmTab:AddSection("Automations & Materials")
-
-_G.AutoFarmBones = false
-
-FarmTab:AddToggle({
-    Name = "Auto Farm Bones (Sea 3)",
-    Default = false,
-    Callback = function(Value)
-        _G.AutoFarmBones = Value
-    end
-})
-
-_G.AutoAnnihilateBosses = false
-
-FarmTab:AddToggle({
-    Name = "Auto Attack Spawned Bosses",
-    Default = false,
-    Callback = function(Value)
-        _G.AutoAnnihilateBosses = Value
-    end
-})
-
--- ═══════════════════════════════
--- MAIN INFO UI
--- ═══════════════════════════════
-
-local label = Tab:AddParagraph(
-    "Player & World Status",
-    "Aguardando sincronização..."
-)
+-- ============================================================================
+-- ABA 1: MAIN
+-- ============================================================================
+local Tab = Window:MakeTab({ Title = "Main", Icon = "Home" })
+local label = Tab:AddParagraph("Player & World Status", "Aguardando sincronização...")
 
 task.spawn(function()
     while task.wait(1) do
-
-        local InfoService =
-            getgenv().ZenithHub and
-            getgenv().ZenithHub.Modules and
-            getgenv().ZenithHub.Modules.InfoService
-
+        local InfoService = getgenv().ZenithHub and getgenv().ZenithHub.Modules and getgenv().ZenithHub.Modules.InfoService
         if InfoService and InfoService.Data then
-
             local d = InfoService.Data
-
-            local mirageStatus      = d.Mirage and "🟢 Spawnada!" or "🔴 Não Encontrada"
-            local kitsuneStatus     = d.Kitsune and "🟢 Spawnada!" or "🔴 Não Encontrada"
-            local frozenStatus      = d.FrozenIsland and "🟢 Ativa!" or "🔴 Não Encontrada"
-            local prehistoricStatus = d.PrehistoricIsland and "🟢 Spawnada!" or "🔴 Não Encontrada"
-            local fruitSpStatus     = d.FruitSpawned and "🟢 SPAWNADA NO CHÃO!" or "🔴 Nenhuma"
-            local factoryStatus     = d.Factory and "🟢 Ativo!" or "🔴 Inativo"
-            local timeStatus        = d.FullMoon and "🌕 Noite" or "☀️ Dia"
-
-            local leverStatus = d.PullLever and "🟢 Puxada! (Ativa)" or "🔴 Não Puxada"
-
-            local ccStatus    = d.CursedCaptain and "🟢 VIVO!" or "🔴 Morto/Inativo"
-            local dbStatus    = d.Darkbeard and "🟢 VIVO!" or "🔴 Morto/Inativo"
-            local cpStatus    = d.CakePrince and "🟢 VIVO!" or "🔴 Não invocado"
-            local dkStatus    = d.DoughKing and "🟢 VIVO!" or "🔴 Não invocado"
-            local indraStatus = d.RipIndra and "🟢 VIVO!" or "🔴 Sem Névoa"
-
-            local text =
-                "Level: " .. tostring(d.Level or 0) ..
-                " | Sea: " .. tostring(d.Sea or "Unknown") .. "\n" ..
-
-                "Fruit: " .. tostring(d.Fruit or "None") .. "\n" ..
-                "Pull Lever: " .. leverStatus .. "\n" ..
-
-                "----------------------------------\n" ..
-
-                "Moon Cycle: " .. tostring(d.MoonProgress or "Verificando...") .. "\n" ..
-                "Current Time: " .. timeStatus .. "\n" ..
-
-                "----------------------------------\n" ..
-
-                "Fruit on Map: " .. fruitSpStatus .. "\n" ..
-                "Mirage Island: " .. mirageStatus .. "\n" ..
-                "Kitsune Island: " .. kitsuneStatus .. "\n" ..
-                "Frozen Island: " .. frozenStatus .. "\n" ..
-                "Prehistoric Island: " .. prehistoricStatus .. "\n" ..
-                "Factory Event: " .. factoryStatus .. "\n" ..
-
-                "----------------------------------\n" ..
-
-                "🔱 BOSSES STATUS:\n" ..
-                "• Cursed Captain: " .. ccStatus .. "\n" ..
-                "• Darkbeard: " .. dbStatus .. "\n" ..
-                "• Cake Prince: " .. cpStatus .. "\n" ..
-                "• Dough King: " .. dkStatus .. "\n" ..
-                "• rip_indra: " .. indraStatus
-
-            pcall(function()
-                label:SetDescription(text)
-            end)
-
-        else
-
-            pcall(function()
-                label:SetDescription(
-                    "Erro: InfoService não encontrado..."
-                )
-            end)
-
+            local text = string.format("Level: %s | Sea: %s\nFruit: %s | Pull Lever: %s\n------------------\nMoon: %s | Time: %s\n------------------\nMirage: %s | Kitsune: %s\nFrozen: %s | Prehistoric: %s\nFactory: %s\n------------------\n🔱 BOSSES STATUS:\n• Cursed Captain: %s\n• Darkbeard: %s\n• Cake Prince: %s\n• Dough King: %s\n• rip_indra: %s",
+                tostring(d.Level or 0), tostring(d.Sea or "Unknown"), tostring(d.Fruit or "None"), 
+                d.PullLever and "🟢 Sim" or "🔴 Não", tostring(d.MoonProgress or "..."), 
+                (d.FullMoon and "🌕 Noite" or "☀️ Dia"), 
+                (d.Mirage and "🟢" or "🔴"), (d.Kitsune and "🟢" or "🔴"), (d.FrozenIsland and "🟢" or "🔴"), (d.PrehistoricIsland and "🟢" or "🔴"), 
+                (d.Factory and "🟢" or "🔴"), 
+                (d.CursedCaptain and "✅" or "❌"), (d.Darkbeard and "✅" or "❌"), (d.CakePrince and "✅" or "❌"), (d.DoughKing and "✅" or "❌"), (d.RipIndra and "✅" or "❌"))
+            pcall(function() label:SetDescription(text) end)
         end
     end
 end)
+
+-- ============================================================================
+-- ABA 2: FARM
+-- ============================================================================
+local FarmTab = Window:MakeTab({ Title = "Farm", Icon = "Sword" })
+
+-- 1. Farm Settings
+FarmTab:AddSection("Farm Settings")
+FarmTab:AddDropdown({ Name = "Select Weapon", Options = {"Melee", "Sword", "Devil Fruit", "Gun"}, Default = "Melee", Callback = function(v) _G.SelectedWeapon = v end })
+FarmTab:AddToggle({ Name = "Fast Attack", Default = false, Callback = function(v) getgenv().ZenithHub.Modules.FarmSettings:FastAttack(v) end })
+FarmTab:AddToggle({ Name = "Bring Mobs", Default = false, Callback = function(v) getgenv().ZenithHub.Modules.FarmSettings:BringMobs(v) end })
+
+-- 2. Movement Settings (Tween & Height)
+FarmTab:AddSection("Movement Settings")
+FarmTab:AddSlider({ Name = "Tween Speed", Min = 100, Max = 600, Default = 300, Callback = function(v) _G.TweenSpeed = v end })
+FarmTab:AddSlider({ Name = "Attack Height", Min = 0, Max = 20, Default = 5, Callback = function(v) _G.AttackHeight = v end })
+
+-- 3. Main Farm
+FarmTab:AddSection("Main Farm")
+FarmTab:AddToggle({ Name = "Auto Farm Level", Default = false, Callback = function(v) getgenv().ZenithHub.Modules.FarmLevel:AutoFarm(v) end })
+
+-- 4. Materials
+FarmTab:AddSection("Automations & Materials")
+FarmTab:AddToggle({ Name = "Auto Farm Bones", Default = false, Callback = function(v) _G.AutoFarmBones = v end })
+FarmTab:AddToggle({ Name = "Auto Attack Bosses", Default = false, Callback = function(v) _G.AutoAnnihilateBosses = v end })
+
+-- ============================================================================
+-- INITIALIZATION
+-- ============================================================================
+-- Certifique-se de que os módulos estão carregados no getgenv().ZenithHub.Modules
+-- antes de rodar este script de UI.
