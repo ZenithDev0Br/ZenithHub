@@ -2,15 +2,15 @@ local Core = {}
 
 Core.Services = {
     Players = game:GetService("Players"),
-    RunService = game:GetService("RunService"),
-    TweenService = game:GetService("TweenService"),
-    ReplicatedStorage = game:GetService("ReplicatedStorage")
+    Workspace = game:GetService("Workspace"),
+    Lighting = game:GetService("Lighting"),
+    RunService = game:GetService("RunService")
 }
 
-Core.LocalPlayer = Core.Services.Players.LocalPlayer
+Core.Player = Core.Services.Players.LocalPlayer
 
 function Core:GetCharacter()
-    return self.LocalPlayer.Character or self.LocalPlayer.CharacterAdded:Wait()
+    return self.Player.Character or self.Player.CharacterAdded:Wait()
 end
 
 function Core:GetRoot()
@@ -18,8 +18,12 @@ function Core:GetRoot()
     return char:WaitForChild("HumanoidRootPart")
 end
 
-function Core:Notify(msg)
-    print("[ZenithHub] " .. msg)
+function Core:GetLevel()
+    local data = self.Player:FindFirstChild("Data")
+    if data and data:FindFirstChild("Level") then
+        return data.Level.Value
+    end
+    return 0
 end
 
 return Core
