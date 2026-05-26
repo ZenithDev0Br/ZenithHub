@@ -1,39 +1,25 @@
---[[
-    ZenithHub Core
-]]
-
 local Core = {}
 
---// Services
-Core.Players = game:GetService("Players")
-Core.RunService = game:GetService("RunService")
-Core.TweenService = game:GetService("TweenService")
-Core.ReplicatedStorage = game:GetService("ReplicatedStorage")
-Core.VirtualUser = game:GetService("VirtualUser")
-Core.HttpService = game:GetService("HttpService")
+Core.Services = {
+    Players = game:GetService("Players"),
+    RunService = game:GetService("RunService"),
+    TweenService = game:GetService("TweenService"),
+    ReplicatedStorage = game:GetService("ReplicatedStorage")
+}
 
---// Player
-Core.LocalPlayer = Core.Players.LocalPlayer
+Core.LocalPlayer = Core.Services.Players.LocalPlayer
 
 function Core:GetCharacter()
-    return self.LocalPlayer.Character
-        or self.LocalPlayer.CharacterAdded:Wait()
-end
-
-function Core:GetHumanoid()
-    local Character = self:GetCharacter()
-
-    return Character:FindFirstChildOfClass("Humanoid")
+    return self.LocalPlayer.Character or self.LocalPlayer.CharacterAdded:Wait()
 end
 
 function Core:GetRoot()
-    local Character = self:GetCharacter()
-
-    return Character:FindFirstChild("HumanoidRootPart")
+    local char = self:GetCharacter()
+    return char:WaitForChild("HumanoidRootPart")
 end
 
-function Core:Notify(Text)
-    print("[ZenithHub]:", Text)
+function Core:Notify(msg)
+    print("[ZenithHub] " .. msg)
 end
 
 return Core
