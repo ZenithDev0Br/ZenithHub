@@ -1,97 +1,133 @@
 local AutoQuest = {}
 
-local Players = game:GetService("Players")
+local Players =
+    game:GetService("Players")
 
-local LocalPlayer = Players.LocalPlayer
+local ReplicatedStorage =
+    game:GetService("ReplicatedStorage")
 
-local Sea1 =
-loadstring(readfile("ZenithHub/Modules/QuestData/Sea1.lua"))()
+local LocalPlayer =
+    Players.LocalPlayer
 
-local Sea2 =
-loadstring(readfile("ZenithHub/Modules/QuestData/Sea2.lua"))()
+local Remotes =
+    ReplicatedStorage:WaitForChild("Remotes")
 
-local Sea3 =
-loadstring(readfile("ZenithHub/Modules/QuestData/Sea3.lua"))()
+local CommF =
+    Remotes:WaitForChild("CommF_")
 
-AutoQuest.Quests = {}
+AutoQuest.Quests = {
 
--- MERGE
-for _, v in pairs(Sea1) do
-    table.insert(AutoQuest.Quests, v)
-end
+    {
+        Min = 1,
+        Max = 15,
+        QuestName = "BanditQuest1",
+        QuestLevel = 1,
+        Enemy = "Bandit",
+        QuestPosition = Vector3.new(1060, 17, 1547)
+    },
 
-for _, v in pairs(Sea2) do
-    table.insert(AutoQuest.Quests, v)
-end
-
-for _, v in pairs(Sea3) do
-    table.insert(AutoQuest.Quests, v)
-end
+    {
+        Min = 15,
+        Max = 30,
+        QuestName = "JungleQuest",
+        QuestLevel = 1,
+        Enemy = "Monkey",
+        QuestPosition = Vector3.new(-1604, 37, 152)
+    }
+}
 
 function AutoQuest:GetLevel()
 
-    local data =
+    local Data =
         LocalPlayer:FindFirstChild("Data")
 
-    if not data then
+    if not Data then
         return 0
     end
 
-    local level =
-        data:FindFirstChild("Level")
+    local Level =
+        Data:FindFirstChild("Level")
 
-    return level and level.Value or 0
+    return Level and Level.Value or 0
 end
 
-function AutoQuest:GetQuest()
+function AutoQuest:GetQuestData()
 
-    local level = self:GetLevel()
+    local Level =
+        self:GetLevel()
 
-    for _, quest in pairs(self.Quests) do
+    for _, Quest in ipairs(self.Quests) do
 
-        if level >= quest.Min
-            and level <= quest.Max then
+        if Level >= Quest.Min
+        and Level <= Quest.Max then
 
-            return quest
+            return Quest
         end
     end
 end
 
 function AutoQuest:HasQuest()
 
-    local gui =
-        LocalPlayer.PlayerGui:FindFirstChild("Main")
+    local PlayerGui =
+        LocalPlayer:FindFirstChild("PlayerGui")
 
-    if not gui then
+    if not PlayerGui then
         return false
     end
 
-    local quest =
-        gui:FindFirstChild("Quest")
+    local Main =
+        PlayerGui:FindFirstChild("Main")
 
-    return quest and quest.Visible
+    if not Main then
+        return false
+    end
+
+    local Quest =
+        Main:FindFirstChild("Quest")
+
+    if not Quest then
+        return false
+    end
+
+    return Quest.Visible
 end
 
 function AutoQuest:StartQuest()
 
-    local questData = self:GetQuest()
-
-    if not questData then
-        return
+    if self:HasQuest() then
+        return true
     end
 
-    local remotes =
-        game.ReplicatedStorage:FindFirstChild("Remotes")
+    local QuestData =
+        self:GetQuestData()
 
-    if remotes and remotes:FindFirstChild("CommF_") then
-
-        remotes.CommF_:InvokeServer(
-            "StartQuest",
-            questData.QuestName,
-            questData.QuestLevel
-        )
-
+    if not QuestData then
+        warn("[Quest] Quest não encontrada")
+        return false
     end
+
+    local Success, Result =
+        pcall(function()
+
+            return CommF:InvokeServer(
+                "StartQuest",
+                QuestData.QuestName,
+                QuestData.QuestLevel
+            )
+        end)
+
+    if Success then
+
+        print("[Quest] Quest iniciada:",
+            QuestData.Enemy)
+
+        return true
+    end
+
+    warn("[Quest] Erro:",
+        Result)
+
+    return false
 end
 
 return AutoQuest
