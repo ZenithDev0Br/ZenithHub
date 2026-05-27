@@ -37,7 +37,7 @@ local function LoadFile(Path)
     return Result
 end
 
--- CREATE GLOBAL
+-- GLOBAL
 getgenv().ZenithHub =
     getgenv().ZenithHub or {}
 
@@ -52,7 +52,7 @@ ZenithHub.Connections =
 
 ZenithHub.Loaded = false
 
--- MAIN / CORE
+-- MAIN
 local Main =
     LoadFile("Main.lua")
 
@@ -62,13 +62,29 @@ end
 
 -- MODULES
 local ModuleFiles = {
+
+    -- SERVICES
     "Modules/InfoService.lua",
+
+    -- SETTINGS
     "Modules/FarmSettings.lua",
+
+    -- CORE FARM
     "Modules/FarmLevel.lua",
     "Modules/AutoQuest.lua",
+
+    -- MOVEMENT
     "Modules/Tween.lua",
+
+    -- COMBAT
     "Modules/Combat.lua",
-    "Modules/BringMob.lua"
+    "Modules/Weapon.lua",
+    "Modules/Aura.lua",
+
+    -- MOB SYSTEM
+    "Modules/BringMob.lua",
+    "Modules/MobScanner.lua",
+    "Modules/Target.lua"
 }
 
 for _, File in ipairs(ModuleFiles) do
@@ -83,15 +99,25 @@ for _, File in ipairs(ModuleFiles) do
 
         ZenithHub.Modules[Name] =
             Module
+
+        print("[ZenithHub] Module Loaded:", Name)
     end
 end
 
--- START SERVICES
+-- START INFOSERVICE
 if ZenithHub.Modules.InfoService
 and ZenithHub.Modules.InfoService.Start then
 
     task.spawn(function()
-        ZenithHub.Modules.InfoService:Start()
+
+        local Success, Error =
+            pcall(function()
+                ZenithHub.Modules.InfoService:Start()
+            end)
+
+        if not Success then
+            warn("[ZenithHub] InfoService Error:", Error)
+        end
     end)
 end
 
