@@ -9,7 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 -- [[ TABELA DE QUESTS ]]
 _G.QuestConfig = {
     ["Bandit"] = {
-        NPCName = "Quest Giver",
+        NPCName = "Bandits Quest Giver",
         QuestNameInGame = "Bandits",
         QuestNumber = 1,
         MobName = "Bandit",
