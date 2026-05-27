@@ -16,9 +16,9 @@ local Sea3_ID = 7449423635
 -- ========================================================
 -- ⚠️ DETALHE IMPORTANTE: COLOQUE SEUS LINKS RAW DO GITHUB AQUI
 -- ========================================================
-local Link_Sea1 = "https://raw.githubusercontent.com/SeuUsuario/SeuRepositorio/main/QuestData/Sea1.lua"
-local Link_Sea2 = "https://raw.githubusercontent.com/SeuUsuario/SeuRepositorio/main/QuestData/Sea2.lua"
-local Link_Sea3 = "https://raw.githubusercontent.com/SeuUsuario/SeuRepositorio/main/QuestData/Sea3.lua"
+local Link_Sea1 = "https://raw.githubusercontent.com/ZenithDev0Br/ZenithHub/refs/heads/main/Modules/QuestData/Sea1.lua"
+local Link_Sea2 = "https://raw.githubusercontent.com/ZenithDev0Br/ZenithHub/refs/heads/main/Modules/QuestData/Sea2.lua"
+local Link_Sea3 = "https://raw.githubusercontent.com/ZenithDev0Br/ZenithHub/refs/heads/main/Modules/QuestData/Sea3.lua"
 
 -- Função que baixa as tabelas direto do GitHub usando HttpGet e Loadstring
 local function LoadQuests()
