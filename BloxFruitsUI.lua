@@ -111,6 +111,16 @@ FarmTab:AddToggle({
     Default = Settings.AutoFarmLevel,
     Callback = function(v)
         Settings.AutoFarmLevel = v
+        
+        -- Segurança para garantir que o módulo FarmLevel existe antes de chamar
+        if FarmLevel then
+            FarmLevel.Enabled = v
+            if v then
+                FarmLevel:Start() -- Liga o Farm assim que ativa o botão
+            end
+        else
+            warn("[ZenithHub] Erro: O módulo 'FarmLevel' não está carregado na sua UI.")
+        end
     end
 })
 
