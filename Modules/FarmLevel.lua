@@ -9,17 +9,27 @@ local Modules =
 local Settings =
     Modules.FarmSettings
 
+local AutoQuest =
+    Modules.AutoQuest
+
 function Farm:Start()
 
     task.spawn(function()
 
-        while task.wait() do
+        while task.wait(1) do
 
             if not Settings.AutoFarmLevel then
                 continue
             end
 
-            print("Farmando...")
+            if not AutoQuest:HasQuest() then
+
+                AutoQuest:StartQuest()
+
+                task.wait(2)
+            end
+
+            print("Farm ativo...")
         end
     end)
 end
