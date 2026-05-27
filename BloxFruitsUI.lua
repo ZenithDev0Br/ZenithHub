@@ -8,6 +8,14 @@ local Window = Library:MakeWindow({
     ScriptFolder = "ZenithHub"
 })
 
+-- Garante que o ambiente global exista antes de carregar a UI
+getgenv().ZenithHub = getgenv().ZenithHub or {}
+getgenv().ZenithHub.Modules = getgenv().ZenithHub.Modules or {}
+
+local Modules = getgenv().ZenithHub.Modules
+local Settings = Modules.FarmSettings
+local FarmLevel = Modules.FarmLevel -- Puxa o módulo carregado pelo teu Loader
+
 -- ============================================================================
 -- ABA 1: MAIN
 -- ============================================================================
@@ -16,7 +24,7 @@ local label = Tab:AddParagraph("Player & World Status", "Aguardando sincronizaç
 
 task.spawn(function()
     while task.wait(1) do
-        local InfoService = getgenv().ZenithHub and getgenv().ZenithHub.Modules and getgenv().ZenithHub.Modules.InfoService
+        local InfoService = Modules.InfoService
         if InfoService and InfoService.Data then
             local d = InfoService.Data
             local text = string.format("Level: %s | Sea: %s\nFruit: %s | Pull Lever: %s\n------------------\nMoon: %s | Time: %s\n------------------\nMirage: %s | Kitsune: %s\nFrozen: %s | Prehistoric: %s\nFactory: %s\n------------------\n🔱 BOSSES STATUS:\n• Cursed Captain: %s\n• Darkbeard: %s\n• Cake Prince: %s\n• Dough King: %s\n• rip_indra: %s",
@@ -35,12 +43,8 @@ end)
 -- ============================================================================
 -- ABA 2: FARM
 -- ============================================================================
-local Modules = getgenv().ZenithHub.Modules
-local Settings = Modules.FarmSettings
-local FarmLevel = Modules.FarmLevel -- Puxa o módulo carregado pelo seu Loader
 
 -- 🚀 [SISTEMA DE NOCLIP AUTOMÁTICO] 🚀
--- Mantém o noclip ativo enquanto o botão de Auto Farm Level estiver ligado
 local RunService = game:GetService("RunService")
 task.spawn(function()
     RunService.Stepped:Connect(function()
@@ -67,26 +71,26 @@ FarmTab:AddSection("Farm Settings")
 
 FarmTab:AddDropdown({
     Name = "Select Weapon",
-    Options = {"Melee", "Sword", "Devil Fruit", "Gun"},
-    Default = Settings.SelectedWeapon,
+    Options = {"Melee", "Sword", "Blox Fruit", "Gun"},
+    Default = Settings and Settings.WeaponType or "Melee",
     Callback = function(v)
-        Settings.SelectedWeapon = v
+        if Settings then Settings.WeaponType = v end
     end
 })
 
 FarmTab:AddToggle({
     Name = "Fast Attack",
-    Default = Settings.FastAttack,
+    Default = Settings and Settings.FastAttack or false,
     Callback = function(v)
-        Settings.FastAttack = v
+        if Settings then Settings.FastAttack = v end
     end
 })
 
 FarmTab:AddToggle({
     Name = "Bring Mobs",
-    Default = Settings.BringMobs,
+    Default = Settings and Settings.BringMobs or false,
     Callback = function(v)
-        Settings.BringMobs = v
+        if Settings then Settings.BringMobs = v end
     end
 })
 
@@ -97,9 +101,9 @@ FarmTab:AddSlider({
     Name = "Tween Speed",
     Min = 100,
     Max = 600,
-    Default = Settings.TweenSpeed,
+    Default = Settings and Settings.TweenSpeed or 300,
     Callback = function(v)
-        Settings.TweenSpeed = v
+        if Settings then Settings.TweenSpeed = v end
     end
 })
 
@@ -107,9 +111,9 @@ FarmTab:AddSlider({
     Name = "Attack Height",
     Min = 0,
     Max = 40,
-    Default = Settings.AttackHeight,
+    Default = Settings and Settings.AttackHeight or 5,
     Callback = function(v)
-        Settings.AttackHeight = v
+        if Settings then Settings.AttackHeight = v end
     end
 })
 
@@ -117,9 +121,9 @@ FarmTab:AddSlider({
     Name = "Attack Distance",
     Min = -20,
     Max = 20,
-    Default = Settings.AttackDistance,
+    Default = Settings and Settings.AttackDistance or 0,
     Callback = function(v)
-        Settings.AttackDistance = v
+        if Settings then Settings.AttackDistance = v end
     end
 })
 
@@ -128,15 +132,17 @@ FarmTab:AddSection("Main Farm")
 
 FarmTab:AddToggle({
     Name = "Auto Farm Level",
-    Default = Settings.AutoFarmLevel,
+    Default = Settings and Settings.AutoFarmLevel or false,
     Callback = function(v)
-        Settings.AutoFarmLevel = v
+        if Settings then Settings.AutoFarmLevel = v end
         
-        -- Agora ele reconhece perfeitamente o módulo vindo do Loader
+        -- Atualiza a referência caso o Loader tenha demorado a carregar o módulo
+        FarmLevel = Modules.FarmLevel or FarmLevel 
+        
         if FarmLevel then
             FarmLevel.Enabled = v
             if v then
-                FarmLevel:Start() -- Liga o Farm assim que ativa o botão
+                FarmLevel:Start()
             end
         else
             warn("[ZenithHub] Erro: O módulo 'FarmLevel' não foi encontrado na tabela Modules.")
@@ -146,16 +152,17 @@ FarmTab:AddToggle({
 
 FarmTab:AddToggle({
     Name = "Auto Farm Bones",
-    Default = Settings.AutoFarmBones,
+    Default = Settings and Settings.AutoFarmBones or false,
     Callback = function(v)
-        Settings.AutoFarmBones = v
+        if Settings then Settings.AutoFarmBones = v end
     end
 })
 
 FarmTab:AddToggle({
     Name = "Auto Boss",
-    Default = Settings.AutoBoss,
+    Default = Settings and Settings.AutoBoss or false,
     Callback = function(v)
-        Settings.AutoBoss = v
+        if Settings then Settings.AutoBoss = v end
     end
 })
+
