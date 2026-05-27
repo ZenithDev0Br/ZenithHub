@@ -1,71 +1,54 @@
-if not getgenv().ZenithHub then getgenv().ZenithHub = { Modules = {} } end
 local FarmLevel = {}
 local TS = game:GetService("TweenService")
-local RS = game:GetService("RunService")
 local LP = game:GetService("Players").LocalPlayer
-
-local noclipConnection = nil
-local activeTween = nil
-_G.CurrentMobName = ""
-
-function FarmLevel:ToggleNoClip(enabled)
-    if enabled then
-        if not noclipConnection then
-            noclipConnection = RS.Stepped:Connect(function()
-                if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
-                    for _, v in pairs(LP.Character:GetChildren()) do
-                        if v:IsA("BasePart") then v.CanCollide = false end
-                    end
-                end
-            end)
-        end
-    else
-        if noclipConnection then noclipConnection:Disconnect(); noclipConnection = nil end
-    end
-end
+local RS = game:GetService("RunService")
 
 function FarmLevel:AutoFarm(enabled)
     _G.AutoFarmLevel = enabled
-    self:ToggleNoClip(enabled)
-
+    
     task.spawn(function()
-        while _G.AutoFarmLevel and task.wait(0.5) do
-            local QuestModule = getgenv().ZenithHub.Modules.Quest
-            if not QuestModule then continue end
+        while _G.AutoFarmLevel and task.wait() do
+            local Modules = getgenv().ZenithHub.Modules
+            local QuestMod = Modules.Quest
+            local Remote = Modules.RemoteHandler
             
+            -- 1. Verifica Level e Quest
             local myLevel = LP.Data.Level.Value
-            local qData = QuestModule:GetCurrentQuest(myLevel)
-            _G.CurrentMobName = qData.Mob 
+            local qData = QuestMod:GetCurrentQuest(myLevel)
             
-            -- FORÇA: Se a UI da quest sumir, ele tenta pegar novamente
-            if not QuestModule:HasActiveQuest(LP) then
-                QuestModule:TakeQuest(qData)
+            -- 2. Se não tem quest, pega
+            if not QuestMod:HasActiveQuest(LP) then
+                QuestMod:TakeQuest(qData)
                 task.wait(1)
             end
             
-            -- LÓGICA DE MOVIMENTO E ATAQUE
+            -- 3. Procura o mob
             local targetMob = nil
             for _, v in pairs(workspace.Enemies:GetChildren()) do
-                -- Verifica se o bicho é da missão e se está vivo
                 if v.Name == qData.Mob and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
                     targetMob = v
                     break
                 end
             end
             
+            -- 4. Lógica de Aproximação e Ataque
             if targetMob then
-                local targetPos = targetMob.HumanoidRootPart.CFrame * CFrame.new(0, 15, 0) -- Fica 15 studs acima
+                local targetPos = targetMob.HumanoidRootPart.CFrame * CFrame.new(0, 10, 0)
                 
-                -- Se estiver longe, usa o Tween
-                if (LP.Character.HumanoidRootPart.Position - targetPos.Position).Magnitude > 10 then
-                    local info = TweenInfo.new(0.5, Enum.EasingStyle.Linear) -- Tween mais rápido
-                    if activeTween then activeTween:Cancel() end
-                    activeTween = TS:Create(LP.Character.HumanoidRootPart, info, {CFrame = targetPos})
-                    activeTween:Play()
+                -- Teleporte/Tween para o mob
+                if (LP.Character.HumanoidRootPart.Position - targetPos.Position).Magnitude > 5 then
+                    local dist = (LP.Character.HumanoidRootPart.Position - targetPos.Position).Magnitude
+                    local tween = TS:Create(LP.Character.HumanoidRootPart, TweenInfo.new(dist / 300, Enum.EasingStyle.Linear), {CFrame = targetPos})
+                    tween:Play()
                 else
-                    -- Já perto: para o tween e teletransporta para garantir
-                    if activeTween then activeTween:Cancel() end
+                    -- Já colado no mob, força a posição
                     LP.Character.HumanoidRootPart.CFrame = targetPos
+                    
+                    -- Chama o ataque automático
+                    local tool = LP.Character:FindFirstChildOfClass("Tool")
+                    if tool and tool:FindFirstChild("RemoteFunction") then
+                        Remote:Invoke(tool.RemoteFunction.Name, "Attack")
+                    end
                 end
             end
         end
