@@ -1,34 +1,109 @@
-if _G.ZenithHubLoading then return end
-_G.ZenithHubLoading = true
-
-local BASE = "https://raw.githubusercontent.com/ZenithDev0Br/ZenithHub/main/"
-
-local function load(file)
-    local ok, res = pcall(function()
-        return game:HttpGet(BASE .. file)
-    end)
-
-    if not ok then
-        warn("[ZenithHub] Failed:", file)
-        return
-    end
-
-    local fn = loadstring(res)
-    if fn then fn() end
+if _G.ZenithHubLoading then
+    return
 end
 
--- CORE FIRST
-load("Main.lua")
+_G.ZenithHubLoading = true
+
+local BASE =
+    "https://raw.githubusercontent.com/ZenithDev0Br/ZenithHub/main/"
+
+local function LoadFile(Path)
+
+    local Success, Response = pcall(function()
+        return game:HttpGet(BASE .. Path)
+    end)
+
+    if not Success then
+        warn("[ZenithHub] Failed to load:", Path)
+        return nil
+    end
+
+    local Compiled, Error =
+        loadstring(Response)
+
+    if not Compiled then
+        warn("[ZenithHub] Compile error:", Path, Error)
+        return nil
+    end
+
+    local ExecuteSuccess, Result =
+        pcall(Compiled)
+
+    if not ExecuteSuccess then
+        warn("[ZenithHub] Runtime error:", Path, Result)
+        return nil
+    end
+
+    return Result
+end
+
+-- CREATE GLOBAL
+getgenv().ZenithHub =
+    getgenv().ZenithHub or {}
+
+local ZenithHub =
+    getgenv().ZenithHub
+
+ZenithHub.Modules =
+    ZenithHub.Modules or {}
+
+ZenithHub.Connections =
+    ZenithHub.Connections or {}
+
+ZenithHub.Loaded = false
+
+-- MAIN / CORE
+local Main =
+    LoadFile("Main.lua")
+
+if Main then
+    ZenithHub.Main = Main
+end
 
 -- MODULES
-load("Modules/InfoService.lua")
-load("Modules/FarmSettings.lua")
-load("Modules/FarmLevel.lua")
-load("Modules/Quest.lua")
+local ModuleFiles = {
+    "Modules/InfoService.lua",
+    "Modules/FarmSettings.lua",
+    "Modules/FarmLevel.lua",
+    "Modules/AutoQuest.lua",
+    "Modules/Tween.lua",
+    "Modules/Combat.lua",
+    "Modules/BringMob.lua"
+}
+
+for _, File in ipairs(ModuleFiles) do
+
+    local Module =
+        LoadFile(File)
+
+    if Module then
+
+        local Name =
+            File:match("([^/]+)%.lua$")
+
+        ZenithHub.Modules[Name] =
+            Module
+    end
+end
+
+-- START SERVICES
+if ZenithHub.Modules.InfoService
+and ZenithHub.Modules.InfoService.Start then
+
+    task.spawn(function()
+        ZenithHub.Modules.InfoService:Start()
+    end)
+end
 
 -- UI LAST
-load("BloxFruitsUI.lua")
+local UI =
+    LoadFile("BloxFruitsUI.lua")
 
+if UI then
+    ZenithHub.UI = UI
+end
+
+ZenithHub.Loaded = true
 _G.ZenithHubLoading = false
 
-print("[ZenithHub] Loaded")
+warn("[ZenithHub] Successfully Loaded")
