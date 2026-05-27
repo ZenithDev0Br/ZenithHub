@@ -1,104 +1,117 @@
-local AutoQuest = {}
-
--- Serviços do Roblox
+-- [[ CONFIGURAÇÕES PRINCIPAIS ]]
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
-local Remotes = ReplicatedStorage:WaitForChild("Remotes")
-local CommF = Remotes:WaitForChild("CommF_")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- IDs Oficiais dos mapas do Blox Fruits
-local PlaceID = game.PlaceId
-local Sea1_ID = 2753915549
-local Sea2_ID = 4442272023
-local Sea3_ID = 7449423635
+-- [[ SUAS TABELAS DE QUESTS ]]
+-- Aqui você pode puxar ou colar as tabelas do Niki (SIA1, SIA2)
+-- Montei esse exemplo para o script saber o que fazer:
+local QuestConfig = {
+    ["Bandit"] = {
+        NPCName = "Quest Giver",
+        QuestNameInGame = "Bandits",
+        QuestNumber = 1,
+        MobName = "Bandit",
+        LevelRequired = 0
+    }
+    -- Você pode adicionar as outras missões seguindo essa lógica
+}
 
--- Links Oficiais do seu GitHub
-local Link_Sea1 = "https://raw.githubusercontent.com/ZenithDev0Br/ZenithHub/refs/heads/main/Modules/QuestData/Sea1.lua"
-local Link_Sea2 = "https://raw.githubusercontent.com/ZenithDev0Br/ZenithHub/refs/heads/main/Modules/QuestData/Sea2.lua"
-local Link_Sea3 = "https://raw.githubusercontent.com/ZenithDev0Br/ZenithHub/refs/heads/main/Modules/QuestData/Sea3.lua"
-
--- Função que baixa as tabelas direto do seu GitHub
-local function LoadQuests()
-    local success, result
-    if PlaceID == Sea1_ID then
-        success, result = pcall(function() return loadstring(game:HttpGet(Link_Sea1))() end)
-    elseif PlaceID == Sea2_ID then
-        success, result = pcall(function() return loadstring(game:HttpGet(Link_Sea2))() end)
-    elseif PlaceID == Sea3_ID then
-        success, result = pcall(function() return loadstring(game:HttpGet(Link_Sea3))() end)
-    else
-        warn("[ZenithHub] Não foi possível identificar o Sea atual pelo PlaceID.")
-        return {}
+-- [[ FUNÇÃO HASQUEST (CORRIGIDA VIA DEX) ]]
+function HasQuest()
+    local myFolder = LocalPlayer.PlayerGui:FindFirstChild("my")
+    if myFolder then
+        local questFrame = myFolder:FindFirstChild("Quest") or myFolder:FindFirstChild("quest")
+        if questFrame and questFrame.Visible then
+            return true
+        end
     end
-
-    if success and type(result) == "table" then
-        print("[ZenithHub] Quests carregadas com sucesso!")
-        return result
-    else
-        warn("[ZenithHub] Erro crítico ao baixar as quests:", result)
-        return {}
-    end
+    return false
 end
 
-AutoQuest.Quests = LoadQuests()
+-- [[ FUNÇÃO DE MOVIMENTAÇÃO (TWEEN) ]]
+function TweenTo(CFrameTarget)
+    local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local Root = Character:FindFirstChild("HumanoidRootPart")
+    if not Root then return end
 
-function AutoQuest:GetLevel()
-    local Data = LocalPlayer:FindFirstChild("Data")
-    if not Data then return 0 end
-    local Level = Data:FindFirstChild("Level")
-    return Level and Level.Value or 0
+    local Distance = (Root.Position - CFrameTarget.p).Magnitude
+    local Speed = 300 -- Velocidade do teleporte/voo
+    local Time = Distance / Speed
+
+    local Tween = TweenService:Create(Root, TweenInfo.new(Time, Enum.EasingStyle.Linear), {CFrame = CFrameTarget})
+    Tween:Play()
+    Tween.Completed:Wait()
 end
 
-function AutoQuest:GetQuestData()
-    local Level = self:GetLevel()
-    for _, Quest in ipairs(self.Quests) do
-        if Level >= Quest.Min and Level <= Quest.Max then
-            return Quest
+-- [[ FUNÇÃO PARA PEGAR A MISSÃO ]]
+function TakeQuest(QuestKey)
+    local config = QuestConfig[QuestKey]
+    if not config then return end
+
+    -- Procura o NPC no mapa (geralmente ficam em workspace.NPCs ou direto no workspace)
+    local NPC = workspace:FindFirstChild(config.NPCName) or (workspace:FindFirstChild("NPCs") and workspace.NPCs:FindFirstChild(config.NPCName))
+    
+    if NPC and NPC:FindFirstChild("HumanoidRootPart") then
+        -- Vai até o NPC
+        TweenTo(NPC.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3))
+        task.wait(0.5)
+        
+        -- Dispara o Remote padrão do Blox Fruits para pegar a quest
+        -- (Se o seu jogo usar outro sistema, altere essa linha do Remote)
+        local Remote = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
+        if Remote then
+            Remote:InvokeServer("StartQuest", config.QuestNameInGame, config.QuestNumber)
         end
     end
 end
 
--- Detecção aprimorada e direta da Quest na sua PlayerGui
-function AutoQuest:HasQuest()
-    local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
-    if PlayerGui then
-        local Main = PlayerGui:FindFirstChild("Main")
-        if Main then
-            local QuestFrame = Main:FindFirstChild("Quest")
-            if QuestFrame and QuestFrame.Visible == true then
-                return true
+-- [[ FUNÇÃO PARA MATAR OS MONSTROS ]]
+function FarmMobs(QuestKey)
+    local config = QuestConfig[QuestKey]
+    if not config then return end
+
+    -- Procura os inimigos no workspace
+    for _, mob in pairs(workspace:GetChildren()) do
+        -- Verifica se é o monstro certo, se está vivo e se você ainda tem a quest
+        if mob.Name == config.MobName and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 and HasQuest() then
+            while mob.Humanoid.Health > 0 and HasQuest() do
+                task.wait()
+                
+                local Character = LocalPlayer.Character
+                local Root = Character Vomit and Character:FindFirstChild("HumanoidRootPart")
+                
+                if Root and mob:FindFirstChild("HumanoidRootPart") then
+                    -- Teleporta e prende o seu personagem em cima do monstro (auto-farm padrão)
+                    Root.CFrame = mob.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
+                    
+                    -- Código para auto-clique/ataque (Ativa a ferramenta na mão)
+                    local Tool = LocalPlayer.Backpack:FindFirstChildOfClass("Tool") or Character:FindFirstChildOfClass("Tool")
+                    if Tool then
+                        Character.Humanoid:EquipTool(Tool)
+                        Tool:Activate()
+                    end
+                end
             end
         end
     end
-    return false
 end
 
-local db = false -- Trava de segurança contra spam do servidor
-function AutoQuest:StartQuest()
-    if self:HasQuest() or db then return false end
-    
-    local QuestData = self:GetQuestData()
-    if not QuestData or #self.Quests == 0 then return false end
-
-    db = true
-    local Success, Result = pcall(function()
-        return CommF:InvokeServer(
-            "StartQuest",
-            QuestData.QuestName,
-            QuestData.QuestLevel
-        )
-    end)
-    
-    -- Pausa essencial para a interface do jogo atualizar antes do próximo ciclo
-    task.wait(1.5) 
-    db = false
-
-    if Success then
-        print("[ZenithHub] Solicitada nova quest:", QuestData.Enemy)
-        return true
+-- [[ LOOP PRINCIPAL DO AUTO QUEST ]]
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        
+        -- Defina aqui qual chave da tabela usar (Você pode linkar com o seu sistema de nível)
+        local CurrentQuest = "Bandit" 
+        
+        if not HasQuest() then
+            -- Se não tiver quest na pasta 'my', vai pegar
+            TakeQuest(CurrentQuest)
+        else
+            -- Se já tiver a quest, vai farmar os bixos
+            FarmMobs(CurrentQuest)
+        end
     end
-    return false
-end
-
-return AutoQuest
+end)
