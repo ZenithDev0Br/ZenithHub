@@ -1,59 +1,226 @@
-local FarmLevel = {}
-local TS = game:GetService("TweenService")
-local LP = game:GetService("Players").LocalPlayer
-local RS = game:GetService("RunService")
+local ZenithHub = getgenv().ZenithHub
 
-function FarmLevel:AutoFarm(enabled)
-    _G.AutoFarmLevel = enabled
-    
+local Settings = ZenithHub.Modules.FarmSettings
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local VirtualUser = game:GetService("VirtualUser")
+
+local LocalPlayer = Players.LocalPlayer
+
+local Farm = {}
+
+Farm.Enabled = false
+
+-- CHARACTER
+function Farm:GetCharacter()
+    return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+end
+
+-- ROOT
+function Farm:GetRoot()
+    local char = self:GetCharacter()
+    return char:WaitForChild("HumanoidRootPart")
+end
+
+-- GET CLOSEST MOB
+function Farm:GetClosestMob()
+
+    local enemies = workspace:FindFirstChild("Enemies")
+
+    if not enemies then
+        return nil
+    end
+
+    local closest = nil
+    local shortest = math.huge
+
+    for _, mob in pairs(enemies:GetChildren()) do
+
+        local hrp = mob:FindFirstChild("HumanoidRootPart")
+        local hum = mob:FindFirstChild("Humanoid")
+
+        if hrp and hum and hum.Health > 0 then
+
+            local distance = (
+                hrp.Position - self:GetRoot().Position
+            ).Magnitude
+
+            if distance < shortest then
+                shortest = distance
+                closest = mob
+            end
+
+        end
+    end
+
+    return closest
+end
+
+-- EQUIP WEAPON
+function Farm:EquipWeapon()
+
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+
+    if not backpack then
+        return
+    end
+
+    local character = self:GetCharacter()
+
+    for _, tool in pairs(backpack:GetChildren()) do
+
+        if tool:IsA("Tool") then
+
+            if Settings.SelectedWeapon == "Melee"
+                and tool.ToolTip == "Melee" then
+
+                character.Humanoid:EquipTool(tool)
+                return
+            end
+
+            if Settings.SelectedWeapon == "Sword"
+                and tool.ToolTip == "Sword" then
+
+                character.Humanoid:EquipTool(tool)
+                return
+            end
+
+            if Settings.SelectedWeapon == "Gun"
+                and tool.ToolTip == "Gun" then
+
+                character.Humanoid:EquipTool(tool)
+                return
+            end
+
+            if Settings.SelectedWeapon == "Devil Fruit"
+                and tool.ToolTip == "Blox Fruit" then
+
+                character.Humanoid:EquipTool(tool)
+                return
+            end
+
+        end
+    end
+end
+
+-- TWEEN
+function Farm:TweenTo(position)
+
+    local root = self:GetRoot()
+
+    local tween = TweenService:Create(
+        root,
+        TweenInfo.new(
+            0.8,
+            Enum.EasingStyle.Linear
+        ),
+        {
+            CFrame = CFrame.new(position)
+        }
+    )
+
+    tween:Play()
+
+    return tween
+end
+
+-- ATTACK
+function Farm:Attack()
+
+    VirtualUser:Button1Down(Vector2.new(0, 0))
+    task.wait()
+    VirtualUser:Button1Up(Vector2.new(0, 0))
+
+end
+
+-- BRING MOBS
+function Farm:BringMobs(target)
+
+    if not Settings.BringMobs then
+        return
+    end
+
+    local enemies = workspace:FindFirstChild("Enemies")
+
+    if not enemies then
+        return
+    end
+
+    for _, mob in pairs(enemies:GetChildren()) do
+
+        if mob ~= target then
+
+            local hrp = mob:FindFirstChild("HumanoidRootPart")
+            local hum = mob:FindFirstChild("Humanoid")
+
+            if hrp and hum and hum.Health > 0 then
+
+                hrp.CFrame =
+                    target.HumanoidRootPart.CFrame *
+                    CFrame.new(
+                        math.random(-5,5),
+                        0,
+                        math.random(-5,5)
+                    )
+
+            end
+        end
+    end
+end
+
+-- MAIN LOOP
+function Farm:Start()
+
+    if self.Enabled then
+        return
+    end
+
+    self.Enabled = true
+
     task.spawn(function()
-        while _G.AutoFarmLevel and task.wait() do
-            local Modules = getgenv().ZenithHub.Modules
-            local QuestMod = Modules.Quest
-            local Remote = Modules.RemoteHandler
-            
-            -- 1. Verifica Level e Quest
-            local myLevel = LP.Data.Level.Value
-            local qData = QuestMod:GetCurrentQuest(myLevel)
-            
-            -- 2. Se não tem quest, pega
-            if not QuestMod:HasActiveQuest(LP) then
-                QuestMod:TakeQuest(qData)
-                task.wait(1)
+
+        while self.Enabled do
+            task.wait(0.15)
+
+            if not Settings.AutoFarmLevel then
+                continue
             end
-            
-            -- 3. Procura o mob
-            local targetMob = nil
-            for _, v in pairs(workspace.Enemies:GetChildren()) do
-                if v.Name == qData.Mob and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
-                    targetMob = v
-                    break
+
+            local mob = self:GetClosestMob()
+
+            if mob
+                and mob:FindFirstChild("HumanoidRootPart")
+                and mob:FindFirstChild("Humanoid") then
+
+                local mobPos =
+                    mob.HumanoidRootPart.Position +
+                    Vector3.new(0, 5, 0)
+
+                self:EquipWeapon()
+
+                self:TweenTo(mobPos)
+
+                if Settings.BringMobs then
+                    self:BringMobs(mob)
                 end
-            end
-            
-            -- 4. Lógica de Aproximação e Ataque
-            if targetMob then
-                local targetPos = targetMob.HumanoidRootPart.CFrame * CFrame.new(0, 10, 0)
-                
-                -- Teleporte/Tween para o mob
-                if (LP.Character.HumanoidRootPart.Position - targetPos.Position).Magnitude > 5 then
-                    local dist = (LP.Character.HumanoidRootPart.Position - targetPos.Position).Magnitude
-                    local tween = TS:Create(LP.Character.HumanoidRootPart, TweenInfo.new(dist / 300, Enum.EasingStyle.Linear), {CFrame = targetPos})
-                    tween:Play()
-                else
-                    -- Já colado no mob, força a posição
-                    LP.Character.HumanoidRootPart.CFrame = targetPos
-                    
-                    -- Chama o ataque automático
-                    local tool = LP.Character:FindFirstChildOfClass("Tool")
-                    if tool and tool:FindFirstChild("RemoteFunction") then
-                        Remote:Invoke(tool.RemoteFunction.Name, "Attack")
-                    end
+
+                if Settings.FastAttack then
+                    self:Attack()
                 end
+
             end
         end
     end)
 end
 
-getgenv().ZenithHub.Modules.FarmLevel = FarmLevel
-return FarmLevel
+-- STOP
+function Farm:Stop()
+    self.Enabled = false
+end
+
+ZenithHub.Modules.FarmLevel = Farm
+
+Farm:Start()
+
+return Farm
