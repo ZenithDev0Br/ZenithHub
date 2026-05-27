@@ -45,10 +45,14 @@ function FarmLevel:Start()
                     return
                 end
 
+                -- Puxa as configurações em tempo real da sua UI
+                local Modules = getgenv().ZenithHub and getgenv().ZenithHub.Modules
+                local Settings = Modules and Modules.FarmSettings
+
                 local QuestData = AutoQuest:GetQuestData()
                 if not QuestData then return end
 
-                -- PASSO 1: SE NÃO TIVER MISSÃO, VAI PEGAR
+                -- PASSO 1: SE NÃO TIVER MISSÃO, VAI PEGAR (NPC)
                 if not AutoQuest:HasQuest() then
                     if Tween and Tween.MoveTo then
                         Tween:MoveTo(QuestData.QuestPosition)
@@ -65,20 +69,47 @@ function FarmLevel:Start()
                 else
                     local Enemy = FindEnemy(QuestData.Enemy)
 
+                    -- Pega a altura e distância configuradas nos Sliders da UI (ou usa padrões seguros)
+                    local attackHeight = Settings and Settings.AttackHeight or 5
+                    local attackDistance = Settings and Settings.AttackDistance or 0
+
                     if Enemy and Enemy:FindFirstChild("HumanoidRootPart") then
                         if Weapon and Weapon.Equip then Weapon:Equip() end 
-                        if BringMob and BringMob.Active then BringMob:Cluster(QuestData.Enemy) end
-
-                        -- Posiciona o boneco acima do monstro com segurança
-                        LocalPlayer.Character.HumanoidRootPart.CFrame = Enemy.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
-
-                        if Combat and Combat.Attack then Combat:Attack() end
-                    else
-                        -- Se os monstros não spawnaram, espera no local da quest
-                        if Tween and Tween.MoveTo then
-                            Tween:MoveTo(QuestData.QuestPosition)
+                        
+                        local distanceToEnemy = (LocalPlayer.Character.HumanoidRootPart.Position - Enemy.HumanoidRootPart.Position).Magnitude
+                        
+                        -- Se o monstro foi carregado mas está longe, vai voando (Tween) até ele
+                        if distanceToEnemy > 150 then
+                            if Tween and Tween.MoveTo then
+                                Tween:MoveTo(Enemy.HumanoidRootPart.CFrame * CFrame.new(0, attackHeight, attackDistance))
+                            else
+                                LocalPlayer.Character.HumanoidRootPart.CFrame = Enemy.HumanoidRootPart.CFrame * CFrame.new(0, attackHeight, attackDistance)
+                            end
                         else
-                            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(QuestData.QuestPosition)
+                            -- Se já estiver perto, se posiciona em cima dele para começar a bater
+                            LocalPlayer.Character.HumanoidRootPart.CFrame = Enemy.HumanoidRootPart.CFrame * CFrame.new(0, attackHeight, attackDistance)
+                            
+                            -- Só junta os monstros se a Toggle "Bring Mobs" estiver ligada na UI
+                            if Settings and Settings.BringMobs and BringMob and BringMob.Active then 
+                                BringMob:Cluster(QuestData.Enemy) 
+                            end
+
+                            -- Só ataca se a Toggle "Fast Attack" estiver ligada na UI
+                            if Settings and Settings.FastAttack and Combat and Combat.Attack then 
+                                Combat:Attack() 
+                            end
+                        end
+                    else
+                        -- 🔥 [AQUI ESTAVA O BUG!] 🔥
+                        -- Se não achou nenhum monstro perto (porque você acabou de pegar a quest e eles não carregaram),
+                        -- o boneco voa até a área de spawn deles (EnemyPosition), forçando o jogo a carregar os monstros!
+                        local EnemySpawn = QuestData.EnemyPosition or QuestData.MonsterPosition or QuestData.QuestPosition
+                        if EnemySpawn then
+                            if Tween and Tween.MoveTo then
+                                Tween:MoveTo(EnemySpawn)
+                            else
+                                LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(EnemySpawn)
+                            end
                         end
                     end
                 end
