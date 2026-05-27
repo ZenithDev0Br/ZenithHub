@@ -6,7 +6,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- [[ SUAS TABELAS DE QUESTS ]]
 -- Aqui você pode puxar ou colar as tabelas do Niki (SIA1, SIA2)
--- Montei esse exemplo para o script saber o que fazer:
 local QuestConfig = {
     ["Bandit"] = {
         NPCName = "Quest Giver",
@@ -15,7 +14,6 @@ local QuestConfig = {
         MobName = "Bandit",
         LevelRequired = 0
     }
-    -- Você pode adicionar as outras missões seguindo essa lógica
 }
 
 -- [[ FUNÇÃO HASQUEST (CORRIGIDA VIA DEX) ]]
@@ -36,7 +34,7 @@ function TweenTo(CFrameTarget)
     local Root = Character:FindFirstChild("HumanoidRootPart")
     if not Root then return end
 
-    local Distance = (Root.Position - CFrameTarget.p).Magnitude
+    local Distance = (Root.Position - CFrameTarget.Position).Magnitude
     local Speed = 300 -- Velocidade do teleporte/voo
     local Time = Distance / Speed
 
@@ -50,16 +48,12 @@ function TakeQuest(QuestKey)
     local config = QuestConfig[QuestKey]
     if not config then return end
 
-    -- Procura o NPC no mapa (geralmente ficam em workspace.NPCs ou direto no workspace)
     local NPC = workspace:FindFirstChild(config.NPCName) or (workspace:FindFirstChild("NPCs") and workspace.NPCs:FindFirstChild(config.NPCName))
     
     if NPC and NPC:FindFirstChild("HumanoidRootPart") then
-        -- Vai até o NPC
         TweenTo(NPC.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3))
         task.wait(0.5)
         
-        -- Dispara o Remote padrão do Blox Fruits para pegar a quest
-        -- (Se o seu jogo usar outro sistema, altere essa linha do Remote)
         local Remote = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
         if Remote then
             Remote:InvokeServer("StartQuest", config.QuestNameInGame, config.QuestNumber)
@@ -72,21 +66,17 @@ function FarmMobs(QuestKey)
     local config = QuestConfig[QuestKey]
     if not config then return end
 
-    -- Procura os inimigos no workspace
     for _, mob in pairs(workspace:GetChildren()) do
-        -- Verifica se é o monstro certo, se está vivo e se você ainda tem a quest
         if mob.Name == config.MobName and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 and HasQuest() then
             while mob.Humanoid.Health > 0 and HasQuest() do
                 task.wait()
                 
                 local Character = LocalPlayer.Character
-                local Root = Character Vomit and Character:FindFirstChild("HumanoidRootPart")
+                local Root = Character and Character:FindFirstChild("HumanoidRootPart") -- CORRIGIDO AQUI
                 
                 if Root and mob:FindFirstChild("HumanoidRootPart") then
-                    -- Teleporta e prende o seu personagem em cima do monstro (auto-farm padrão)
                     Root.CFrame = mob.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
                     
-                    -- Código para auto-clique/ataque (Ativa a ferramenta na mão)
                     local Tool = LocalPlayer.Backpack:FindFirstChildOfClass("Tool") or Character:FindFirstChildOfClass("Tool")
                     if Tool then
                         Character.Humanoid:EquipTool(Tool)
@@ -103,14 +93,11 @@ task.spawn(function()
     while true do
         task.wait(0.5)
         
-        -- Defina aqui qual chave da tabela usar (Você pode linkar com o seu sistema de nível)
         local CurrentQuest = "Bandit" 
         
         if not HasQuest() then
-            -- Se não tiver quest na pasta 'my', vai pegar
             TakeQuest(CurrentQuest)
         else
-            -- Se já tiver a quest, vai farmar os bixos
             FarmMobs(CurrentQuest)
         end
     end
