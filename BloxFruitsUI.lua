@@ -39,6 +39,24 @@ local Modules = getgenv().ZenithHub.Modules
 local Settings = Modules.FarmSettings
 local FarmLevel = Modules.FarmLevel -- Puxa o módulo carregado pelo seu Loader
 
+-- 🚀 [SISTEMA DE NOCLIP AUTOMÁTICO] 🚀
+-- Mantém o noclip ativo enquanto o botão de Auto Farm Level estiver ligado
+local RunService = game:GetService("RunService")
+task.spawn(function()
+    RunService.Stepped:Connect(function()
+        if Settings and Settings.AutoFarmLevel then
+            local character = game.Players.LocalPlayer.Character
+            if character then
+                for _, part in pairs(character:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end
+    end)
+end)
+
 local FarmTab = Window:MakeTab({
     Title = "Farm",
     Icon = "Sword"
