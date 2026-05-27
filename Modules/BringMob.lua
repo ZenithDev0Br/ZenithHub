@@ -1,35 +1,35 @@
-local BringMob = {}
-BringMob.Active = true -- Ativado por padrão
+local BringMob = {
+    Active = true -- Mantém o módulo ativo para o FarmLevel usar
+}
 
-local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 
 function BringMob:Cluster(enemyName)
     if not self.Active then return end
     
-    local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-    local myPos = char.HumanoidRootPart.Position
+    local character = LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+    local playerRoot = character.HumanoidRootPart
 
-    -- Varre o mapa procurando os monstros da sua quest
+    -- Varre o Workspace procurando os monstros alvos
     for _, v in pairs(Workspace:GetChildren()) do
         if v:IsA("Model") and v.Name == enemyName and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
-            if v:FindFirstChild("HumanoidRootPart") then
-                local distance = (v.HumanoidRootPart.Position - myPos).Magnitude
-                
-                -- Se o monstro estiver num raio de 350 studs, puxa ele
-                if distance < 350 then
-                    -- Desativa a física dele pra ele não cair ou te empurrar
-                    if not v.HumanoidRootPart:FindFirstChild("BodyVelocity") then
-                        local bv = Instance.new("BodyVelocity")
-                        bv.Velocity = Vector3.new(0, 0, 0)
-                        bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-                        bv.Parent = v.HumanoidRootPart
+            local enemyRoot = v:FindFirstChild("HumanoidRootPart")
+            if enemyRoot then
+                -- Raio de puxada: 300 studs de distância do jogador
+                local distance = (enemyRoot.Position - playerRoot.Position).Magnitude
+                if distance < 300 then
+                    
+                    -- Desativa colisões pro mob não arrastar o seu personagem
+                    enemyRoot.CanCollide = false
+                    if v:FindFirstChild("Head") then
+                        v.Head.CanCollide = false
                     end
                     
-                    -- Coloca o monstro exatamente na sua frente
-                    v.HumanoidRootPart.CFrame = char.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
+                    -- Junta o monstro na posição do farm (exatamente embaixo do player)
+                    enemyRoot.CFrame = playerRoot.CFrame * CFrame.new(0, -5, 0)
                 end
             end
         end
