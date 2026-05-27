@@ -32,15 +32,17 @@ task.spawn(function()
 end)
 
 
--- 2 ABA: FARM
+-- ============================================================================
+-- ABA 2: FARM
+-- ============================================================================
 local Modules = getgenv().ZenithHub.Modules
 local Settings = Modules.FarmSettings
+local FarmLevel = Modules.FarmLevel -- Puxa o módulo carregado pelo seu Loader
 
-local FarmTab =
-    Window:MakeTab({
-        Title = "Farm",
-        Icon = "Sword"
-    })
+local FarmTab = Window:MakeTab({
+    Title = "Farm",
+    Icon = "Sword"
+})
 
 -- SETTINGS
 FarmTab:AddSection("Farm Settings")
@@ -112,14 +114,14 @@ FarmTab:AddToggle({
     Callback = function(v)
         Settings.AutoFarmLevel = v
         
-        -- Segurança para garantir que o módulo FarmLevel existe antes de chamar
+        -- Agora ele reconhece perfeitamente o módulo vindo do Loader
         if FarmLevel then
             FarmLevel.Enabled = v
             if v then
                 FarmLevel:Start() -- Liga o Farm assim que ativa o botão
             end
         else
-            warn("[ZenithHub] Erro: O módulo 'FarmLevel' não está carregado na sua UI.")
+            warn("[ZenithHub] Erro: O módulo 'FarmLevel' não foi encontrado na tabela Modules.")
         end
     end
 })
