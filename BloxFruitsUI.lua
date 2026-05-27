@@ -31,78 +31,55 @@ task.spawn(function()
     end
 end)
 
--- ============================================================================
--- ABA 2: FARM
--- ============================================================================
-local FarmTab = Window:MakeTab({
-    Title = "Farm",
-    Icon = "Sword"
-})
 
-local ZenithHub =
-    getgenv().ZenithHub
+-- 2 ABA: FARM
+local Modules = getgenv().ZenithHub.Modules
+local Settings = Modules.FarmSettings
 
-local Modules =
-    ZenithHub.Modules
+local FarmTab =
+    Window:MakeTab({
+        Title = "Farm",
+        Icon = "Sword"
+    })
 
-local FarmSettings =
-    Modules.FarmSettings
-
-local FarmLevel =
-    Modules.FarmLevel
-
--- ============================================================================
--- FARM SETTINGS
--- ============================================================================
+-- SETTINGS
 FarmTab:AddSection("Farm Settings")
 
 FarmTab:AddDropdown({
     Name = "Select Weapon",
-    Options = {
-        "Melee",
-        "Sword",
-        "Devil Fruit",
-        "Gun"
-    },
-    Default = FarmSettings.SelectedWeapon,
-
-    Callback = function(Value)
-        FarmSettings.SelectedWeapon = Value
+    Options = {"Melee", "Sword", "Devil Fruit", "Gun"},
+    Default = Settings.SelectedWeapon,
+    Callback = function(v)
+        Settings.SelectedWeapon = v
     end
 })
 
 FarmTab:AddToggle({
     Name = "Fast Attack",
-    Default = FarmSettings.FastAttack,
-
-    Callback = function(Value)
-        FarmSettings.FastAttack = Value
+    Default = Settings.FastAttack,
+    Callback = function(v)
+        Settings.FastAttack = v
     end
 })
 
 FarmTab:AddToggle({
     Name = "Bring Mobs",
-    Default = FarmSettings.BringMobs,
-
-    Callback = function(Value)
-        FarmSettings.BringMobs = Value
+    Default = Settings.BringMobs,
+    Callback = function(v)
+        Settings.BringMobs = v
     end
 })
 
--- ============================================================================
--- MOVEMENT SETTINGS
--- ============================================================================
+-- MOVEMENT
 FarmTab:AddSection("Movement")
 
 FarmTab:AddSlider({
     Name = "Tween Speed",
     Min = 100,
     Max = 600,
-    Increment = 10,
-    Default = FarmSettings.TweenSpeed,
-
-    Callback = function(Value)
-        FarmSettings.TweenSpeed = Value
+    Default = Settings.TweenSpeed,
+    Callback = function(v)
+        Settings.TweenSpeed = v
     end
 })
 
@@ -110,11 +87,9 @@ FarmTab:AddSlider({
     Name = "Attack Height",
     Min = 0,
     Max = 40,
-    Increment = 1,
-    Default = FarmSettings.AttackHeight,
-
-    Callback = function(Value)
-        FarmSettings.AttackHeight = Value
+    Default = Settings.AttackHeight,
+    Callback = function(v)
+        Settings.AttackHeight = v
     end
 })
 
@@ -122,87 +97,35 @@ FarmTab:AddSlider({
     Name = "Attack Distance",
     Min = -20,
     Max = 20,
-    Increment = 1,
-    Default = FarmSettings.AttackDistance,
-
-    Callback = function(Value)
-        FarmSettings.AttackDistance = Value
+    Default = Settings.AttackDistance,
+    Callback = function(v)
+        Settings.AttackDistance = v
     end
 })
 
--- ============================================================================
 -- MAIN FARM
--- ============================================================================
 FarmTab:AddSection("Main Farm")
 
 FarmTab:AddToggle({
     Name = "Auto Farm Level",
-    Default = FarmSettings.AutoFarmLevel,
-
-    Callback = function(Value)
-
-        FarmSettings.AutoFarmLevel = Value
-
-        if FarmLevel and FarmLevel.AutoFarm then
-            FarmLevel:AutoFarm(Value)
-        end
+    Default = Settings.AutoFarmLevel,
+    Callback = function(v)
+        Settings.AutoFarmLevel = v
     end
 })
 
 FarmTab:AddToggle({
     Name = "Auto Farm Bones",
-    Default = FarmSettings.AutoFarmBones,
-
-    Callback = function(Value)
-        FarmSettings.AutoFarmBones = Value
+    Default = Settings.AutoFarmBones,
+    Callback = function(v)
+        Settings.AutoFarmBones = v
     end
 })
 
 FarmTab:AddToggle({
     Name = "Auto Boss",
-    Default = FarmSettings.AutoAnnihilateBosses,
-
-    Callback = function(Value)
-        FarmSettings.AutoAnnihilateBosses = Value
+    Default = Settings.AutoBoss,
+    Callback = function(v)
+        Settings.AutoBoss = v
     end
 })
-
--- ============================================================================
--- STATUS
--- ============================================================================
-FarmTab:AddSection("Status")
-
-local StatusLabel =
-    FarmTab:AddParagraph(
-        "Farm Status",
-        "Idle..."
-    )
-
-task.spawn(function()
-
-    while task.wait(1) do
-
-        local Status =
-            FarmSettings.AutoFarmLevel
-            and "🟢 Farming"
-            or "🔴 Stopped"
-
-        local Enemy =
-            FarmLevel.CurrentEnemy
-            or "None"
-
-        local Quest =
-            FarmLevel.CurrentQuest
-            or "None"
-
-        local Text =
-            "Status: " .. Status .. "\n" ..
-            "Enemy: " .. Enemy .. "\n" ..
-            "Quest: " .. Quest .. "\n" ..
-            "Weapon: " .. FarmSettings.SelectedWeapon
-
-        pcall(function()
-            StatusLabel:SetDescription(Text)
-        end)
-    end
-end)
