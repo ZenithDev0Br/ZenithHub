@@ -7,9 +7,9 @@ local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
-local loopRunning = false -- TRAVA DE SEGURANÇA PARA EVITAR LAG
+local loopRunning = false -- Evita duplicação de threads em background
 
--- Função para travar o boneco no ar sem usar forças físicas bugadas
+-- Gerenciador de física para estabilizar o boneco no ar sem bugar o Tween
 local function setCharacterAnchor(hrp, state)
     if hrp and hrp:IsA("BasePart") then
         hrp.Anchored = state
@@ -17,9 +17,10 @@ local function setCharacterAnchor(hrp, state)
 end
 
 function FarmLevel:Start()
+    -- Carrega os módulos injetados na tabela central da ZenithHub
     local ZenithHub = getgenv().ZenithHub
     local Modules = ZenithHub and ZenithHub.Modules
-    if not Modules then return end
+    if not Modules then return warn("❌ ZenithHub Modules não encontrados!") end
 
     local AutoQuest = Modules.AutoQuest
     local Tween     = Modules.Tween
@@ -36,6 +37,7 @@ function FarmLevel:Start()
         while loopRunning and self.Enabled do
             task.wait(0.05)
             
+            -- Se desligar o Farm na Interface, limpa o boneco e pausa o loop
             if not Settings or not Settings.AutoFarmLevel then
                 local character = LocalPlayer.Character
                 local hrp = character and character:FindFirstChild("HumanoidRootPart")
@@ -48,13 +50,13 @@ function FarmLevel:Start()
                 local character = LocalPlayer.Character
                 local hrp = character and character:FindFirstChild("HumanoidRootPart")
                 
-                -- Verifica se o personagem está vivo e pronto para o farm
+                -- Se o jogador morrer, aguarda o respawn e solta a física
                 if not character or not hrp or character.Humanoid.Health <= 0 then
                     return
                 end
 
                 -- ============================================================
-                -- ESCUDO ANTI-DIÁLOGO: DESTRÓI QUALQUER JANELA PRESA NA TELA
+                -- ESCUDO ANTI-DIÁLOGO (BYPASS DA UI DA ZYN HUB)
                 -- ============================================================
                 local MainGui = LocalPlayer:FindFirstChild("PlayerGui") and LocalPlayer.PlayerGui:FindFirstChild("Main")
                 if MainGui then
@@ -70,7 +72,7 @@ function FarmLevel:Start()
                 if not QuestData then return end
 
                 -- ============================================================
-                -- PROTEÇÃO CONTRA BOSS
+                -- SISTEMA ANTI-BOSS (ABANDONA MISSÕES IMPOSSÍVEIS PRO UP)
                 -- ============================================================
                 if AutoQuest:HasQuest() then
                     local nomeInimigo = QuestData.Enemy:lower()
@@ -86,10 +88,10 @@ function FarmLevel:Start()
                 end
 
                 -- ============================================================
-                -- SISTEMA DE MOVIMENTAÇÃO E PEGAR MISSÃO (BYPASS TOTAL)
+                -- LOGICA 1: NÃO TEM MISSÃO -> ANDAR ATÉ O NPC E PEGAR
                 -- ============================================================
                 if not AutoQuest:HasQuest() then
-                    setCharacterAnchor(hrp, false) -- Desanconra TOTAL para o Tween funcionar livremente
+                    setCharacterAnchor(hrp, false) -- Desancora pro Tween fluir suave
                     
                     local npcTargetCFrame = CFrame.new(QuestData.QuestPosition) * CFrame.new(0, 12, 0)
 
@@ -111,7 +113,7 @@ function FarmLevel:Start()
                     end
                 
                 -- ============================================================
-                -- ROTINA DE COMBATE (FARM ATIVO DE MONSTROS COMUNS)
+                -- LOGICA 2: TEM MISSÃO ATIVA -> ATACAR MONSTROS
                 -- ============================================================
                 else
                     local targetMob = nil
@@ -127,20 +129,22 @@ function FarmLevel:Start()
                     local attackDistance = Settings and Settings.AttackDistance or 0
 
                     if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
+                        -- Força o equip da arma selecionada na UI (Melee / Sword / Fruit)
                         if Weapon and Weapon.Equip then Weapon:Equip() end 
                         
-                        -- Posição calculada em relação ao mob
+                        -- Calcula o ponto de ataque seguro baseado nos sliders da UI
                         local targetCFrame = targetMob.HumanoidRootPart.CFrame * CFrame.new(0, attackHeight, attackDistance)
                         
-                        -- Só atualiza a posição se o mob se mover de verdade (evita tremedeira visual)
+                        -- Só altera a posição se o monstro se deslocar (Evita o jitter visual do boneco)
                         if (hrp.Position - targetCFrame.Position).Magnitude > 1 then
-                            setCharacterAnchor(hrp, false) -- Solta só para teleportar
+                            setCharacterAnchor(hrp, false) -- Libera a física para ajustar a posição
                             hrp.CFrame = targetCFrame
-                            task.wait(0.01) -- Micro-espera para o motor aceitar a física
+                            task.wait(0.01) -- Micro-espera necessária para a engine processar
                         end
                         
-                        setCharacterAnchor(hrp, true) -- Trava o boneco no ar enquanto bate
+                        setCharacterAnchor(hrp, true) -- Trava o boneco rigidamente no ar
                         
+                        -- Roda os scripts de agrupar inimigos e bater
                         if Settings.BringMobs and BringMob and BringMob.Cluster then 
                             BringMob:Cluster(QuestData.Enemy) 
                         end
@@ -149,7 +153,7 @@ function FarmLevel:Start()
                             Combat:Attack() 
                         end
                     else
-                        -- Se não achou o mob, desancora para voar até o spawn deles
+                        -- Se os monstros morrerem, desancora e voa de volta para o ponto de spawn deles
                         setCharacterAnchor(hrp, false)
                         if QuestData.EnemyPosition then
                             local targetPos = typeof(QuestData.EnemyPosition) == "Vector3" and CFrame.new(QuestData.EnemyPosition) or QuestData.EnemyPosition
@@ -164,6 +168,7 @@ function FarmLevel:Start()
                 end
             end)
         end
+        -- Garante que ao encerrar o script por completo, o boneco caia no chão e não fique preso voando
         local character = LocalPlayer.Character
         local hrp = character and character:FindFirstChild("HumanoidRootPart")
         setCharacterAnchor(hrp, false)
