@@ -4,6 +4,7 @@ local FarmLevel = {
 
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
 function FarmLevel:Start()
@@ -20,12 +21,27 @@ function FarmLevel:Start()
 
     task.spawn(function()
         while self.Enabled and Settings.AutoFarmLevel do
-            task.wait(0.05) -- Reduzido de 0.1 para 0.05 para o loop verificar tudo mais rápido
+            task.wait(0.05)
             
             pcall(function()
                 -- Verifica se o personagem está vivo e pronto para o farm
                 if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") or LocalPlayer.Character.Humanoid.Health <= 0 then
                     return
+                end
+
+                -- ============================================================
+                -- ESCUDO ANTI-DIÁLOGO: DESTRÓI QUALQUER JANELA PRESA NA TELA
+                -- ============================================================
+                local MainGui = LocalPlayer:FindFirstChild("PlayerGui") and LocalPlayer.PlayerGui:FindFirstChild("Main")
+                if MainGui then
+                    -- Fecha a janela de conversa com o NPC instantaneamente se ela abrir
+                    if MainGui:FindFirstChild("Dialogue") and MainGui.Dialogue.Visible then
+                        MainGui.Dialogue.Visible = false
+                    end
+                    -- Fecha o menu cinza de seleção de missão para não dar softlock
+                    if MainGui:FindFirstChild("Quest") and MainGui.Quest.Visible and not AutoQuest:HasQuest() then
+                        MainGui.Quest.Visible = false
+                    end
                 end
 
                 local QuestData = AutoQuest:GetQuestData()
@@ -37,7 +53,6 @@ function FarmLevel:Start()
                 if AutoQuest:HasQuest() then
                     local nomeInimigo = QuestData.Enemy:lower()
                     if nomeInimigo:match("king") or nomeInimigo:match("admiral") or nomeInimigo:match("warden") or nomeInimigo:match("cyborg") or nomeInimigo:match("bobby") or nomeInimigo:match("yeti") or nomeInimigo:match("jeremy") or nomeInimigo:match("fajita") or nomeInimigo:match("tide") then
-                        local ReplicatedStorage = game:GetService("ReplicatedStorage")
                         local Remote = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
                         if Remote then
                             Remote:InvokeServer("AbandonQuest") -- Cancela a quest do boss imediatamente
@@ -48,10 +63,10 @@ function FarmLevel:Start()
                 end
 
                 -- ============================================================
-                -- SISTEMA DE MOVIMENTAÇÃO E DIÁLOGO COM O QUEST GIVER
+                -- SISTEMA DE MOVIMENTAÇÃO E PEGAR MISSÃO (BYPASS TOTAL)
                 -- ============================================================
                 if not AutoQuest:HasQuest() then
-                    -- Teleporta 12 studs ACIMA do NPC para não bugar a física dele para baixo da terra
+                    -- Teleporta 12 studs ACIMA do NPC para não bugar a física dele nem ativar por toque
                     local npcTargetCFrame = CFrame.new(QuestData.QuestPosition) * CFrame.new(0, 12, 0)
 
                     if Tween and Tween.MoveTo then
@@ -60,19 +75,20 @@ function FarmLevel:Start()
                         LocalPlayer.Character.HumanoidRootPart.CFrame = npcTargetCFrame
                     end
                     
-                    -- Calcula a distância matemática real até a posição corrigida do NPC
+                    -- Calcula a distância até o NPC
                     local distanceToNPC = (LocalPlayer.Character.HumanoidRootPart.Position - QuestData.QuestPosition).Magnitude
                     
                     -- Se estiver perto o suficiente do Quest Giver
                     if distanceToNPC < 25 then
-                        -- Pausa milimétrica apenas para o anticheat do Roblox registrar o boneco no lugar
                         task.wait(0.05) 
                         
-                        -- Dispara o Remote para pegar a missão
-                        AutoQuest:StartQuest()
+                        -- TRUQUE DE MESTRE: Pega a missão direto usando o Remote do Servidor.
+                        -- Isso faz você aceitar o farm sem abrir diálogos ou telas bugadas!
+                        local Remote = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
+                        if Remote then
+                            Remote:InvokeServer("StartQuest", QuestData.QuestName, QuestData.QuestID)
+                        end
                         
-                        -- OTIMIZAÇÃO CHAVE: Apenas 0.2 segundos para o servidor processar. 
-                        -- Tempo de resposta instantâneo para o farm não mofar!
                         task.wait(0.2)
                     end
                 
