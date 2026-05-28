@@ -7,7 +7,7 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
--- Configurações de tempo e suavidade baseadas no Open Source (Zyn Hub)
+-- Configurações de tempo e suavidade baseadas no Open Source
 local TweenInfoBring = TweenInfo.new(
     0.45, -- Velocidade ideal do puxão suave
     Enum.EasingStyle.Linear,
@@ -29,12 +29,12 @@ function BringMob:Cluster(enemyName)
         sethiddenproperty(LocalPlayer, "SimulationRadius", math.huge)  
     end)  
 
-    -- 🛡️ ALTURA SEGURA: Puxa da UI ou usa 20-25 studs por padrão para o NPC não te bater!
+    -- Puxa as configurações de altura da sua UI
     local ZenithHub = getgenv().ZenithHub
     local Settings = ZenithHub and ZenithHub.Modules and ZenithHub.Modules.FarmSettings
-    local attackHeight = (Settings and Settings.AttackHeight and Settings.AttackHeight >= 15) and Settings.AttackHeight or 22
+    local attackHeight = Settings and Settings.AttackHeight or 5
 
-    -- O ponto exato onde os mobs vão se juntar (Abaixo do jogador!)
+    -- O ponto exato onde os mobs vão se juntar
     local targetCFrame = Root.CFrame * CFrame.new(0, -attackHeight, 0)
     local targetPosition = targetCFrame.Position
 
