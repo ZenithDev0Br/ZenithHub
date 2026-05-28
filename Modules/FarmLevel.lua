@@ -8,17 +8,17 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
-local loopRunning = false
 local noclipConnection = nil
+local currentLoopID = 0 -- Identificador único para cada execução do loop
 
--- Função para travar o boneco no ar sem bugar a física
+-- Gerenciador de física para travar o boneco no ar de forma limpa
 local function setCharacterAnchor(hrp, state)
     if hrp and hrp:IsA("BasePart") then
         hrp.Anchored = state
     end
 end
 
--- Gerenciador de NoClip estrito para não bugar ao desligar
+-- Gerenciador estrito de NoClip via RunService
 local function setNoClip(state)
     if state then
         if not noclipConnection then
@@ -38,12 +38,11 @@ local function setNoClip(state)
             noclipConnection:Disconnect()
             noclipConnection = nil
         end
-        -- Devolve a colisão normal para o personagem no chão
+        -- Devolve a colisão normal para as partes do corpo
         local character = LocalPlayer.Character
         if character then
             for _, part in ipairs(character:GetChildren()) do
                 if part:IsA("BasePart") then
-                    -- Evita reativar a colisão do HumanoidRootPart se o jogo exigir
                     if part.Name ~= "HumanoidRootPart" then
                         part.CanCollide = true
                     end
@@ -65,22 +64,26 @@ function FarmLevel:Start()
     local BringMob  = Modules.BringMob
     local Settings  = Modules.FarmSettings
 
-    -- Se já estiver rodando, não cria outra thread de loop
-    if loopRunning then return end 
+    -- Se já estiver ativado, não faz nada
+    if self.Enabled then return end 
     
-    loopRunning = true
     self.Enabled = true
+    currentLoopID = currentLoopID + 1 -- Gera um novo ID único para esta thread
+    local myLoopID = currentLoopID
 
     task.spawn(function()
-        while loopRunning and self.Enabled do
+        -- O loop só roda se o ID dele ainda for o ID atual do script
+        while self.Enabled and currentLoopID == myLoopID do
             task.wait(0.05)
             
-            -- Se a config geral desligar, reseta o boneco e aguarda
+            -- Se a ID mudou no meio do caminho, corta a execução na hora (Anti-Ghosting)
+            if currentLoopID ~= myLoopID then break end
+
             if not Settings or not Settings.AutoFarmLevel then
                 local character = LocalPlayer.Character
                 local hrp = character and character:FindFirstChild("HumanoidRootPart")
                 setCharacterAnchor(hrp, false)
-                setNoClip(false) -- DESLIGA O NOCLIP CASO O TOGGLE GERAL CAIA
+                setNoClip(false)
                 task.wait(0.5)
                 continue
             end
@@ -94,8 +97,10 @@ function FarmLevel:Start()
                     return
                 end
 
-                -- Garante NoClip ativo durante todo o processo de farm dinâmico
-                setNoClip(true)
+                -- Garante NoClip ativo apenas se esta thread ainda for a dona do script
+                if currentLoopID == myLoopID then
+                    setNoClip(true)
+                end
 
                 -- ============================================================
                 -- ESCUDO ANTI-DIÁLOGO
@@ -181,7 +186,10 @@ function FarmLevel:Start()
                             task.wait(0.01) 
                         end
                         
-                        setCharacterAnchor(hrp, true) 
+                        -- Só ancora o boneco se a thread ainda for a ativa
+                        if currentLoopID == myLoopID then
+                            setCharacterAnchor(hrp, true) 
+                        end
                         
                         if Settings.BringMobs and BringMob and BringMob.Cluster then 
                             BringMob:Cluster(QuestData.Enemy) 
@@ -205,19 +213,22 @@ function FarmLevel:Start()
                 end
             end)
         end
-        -- Bloco de limpeza caso o loop saia naturalmente
-        local character = LocalPlayer.Character
-        local hrp = character and character:FindFirstChild("HumanoidRootPart")
-        setCharacterAnchor(hrp, false)
-        setNoClip(false)
+        
+        -- Segurança extra: se o loop terminar naturalmente e for o último loop válido, limpa tudo
+        if currentLoopID == myLoopID then
+            local character = LocalPlayer.Character
+            local hrp = character and character:FindFirstChild("HumanoidRootPart")
+            setCharacterAnchor(hrp, false)
+            setNoClip(false)
+        end
     end)
 end
 
 function FarmLevel:Stop()
     self.Enabled = false
-    loopRunning = false
+    currentLoopID = currentLoopID + 1 -- Força a invalidação instantânea de qualquer loop que esteja rodando em background
     
-    -- Força a limpeza imediata de física e colisão ao clicar no botão
+    -- Força o reset imediato e absoluto de colisão e âncora
     local character = LocalPlayer.Character
     local hrp = character and character:FindFirstChild("HumanoidRootPart")
     setCharacterAnchor(hrp, false)
