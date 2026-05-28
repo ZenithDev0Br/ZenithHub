@@ -8,6 +8,32 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
 local loopRunning = false -- TRAVA DE SEGURANÇA PARA EVITAR LAG
+local bv = nil -- Guardar a força que impede o boneco de cair
+
+-- Função interna para congelar o boneco no ar e tirar o lag da gravidade
+local function updateAnchor(character, hrp)
+    if not character or not hrp then return end
+    if not bv or bv.Parent ~= hrp then
+        if hrp:FindFirstChild("ZenithAnchor") then
+            bv = hrp.ZenithAnchor
+        else
+            bv = Instance.new("BodyVelocity")
+            bv.Name = "ZenithAnchor"
+            bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+            bv.Velocity = Vector3.new(0, 0, 0)
+            bv.Parent = hrp
+        end
+    end
+end
+
+local function removeAnchor()
+    if bv then bv:Destroy() bv = nil end
+    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        local oldBv = hrp:FindFirstChild("ZenithAnchor")
+        if oldBv then oldBv:Destroy() end
+    end
+end
 
 function FarmLevel:Start()
     local ZenithHub = getgenv().ZenithHub
@@ -21,7 +47,6 @@ function FarmLevel:Start()
     local BringMob  = Modules.BringMob
     local Settings  = Modules.FarmSettings
 
-    -- Impede a criação de múltiplos loops se o cara clicar várias vezes no botão
     if loopRunning then return end 
     loopRunning = true
     self.Enabled = true
@@ -30,15 +55,19 @@ function FarmLevel:Start()
         while loopRunning and self.Enabled do
             task.wait(0.05)
             
-            -- Se a tabela de configurações sumir ou o toggle for desativado, o loop pausa sem crashar
             if not Settings or not Settings.AutoFarmLevel then
+                removeAnchor()
                 task.wait(0.5)
                 continue
             end
             
             pcall(function()
+                local character = LocalPlayer.Character
+                local hrp = character and character:FindFirstChild("HumanoidRootPart")
+                
                 -- Verifica se o personagem está vivo e pronto para o farm
-                if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") or LocalPlayer.Character.Humanoid.Health <= 0 then
+                if not character or not hrp or character.Humanoid.Health <= 0 then
+                    removeAnchor()
                     return
                 end
 
@@ -64,6 +93,7 @@ function FarmLevel:Start()
                 if AutoQuest:HasQuest() then
                     local nomeInimigo = QuestData.Enemy:lower()
                     if nomeInimigo:match("king") or nomeInimigo:match("admiral") or nomeInimigo:match("warden") or nomeInimigo:match("cyborg") or nomeInimigo:match("bobby") or nomeInimigo:match("yeti") or nomeInimigo:match("jeremy") or nomeInimigo:match("fajita") or nomeInimigo:match("tide") then
+                        removeAnchor()
                         local Remote = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
                         if Remote then
                             Remote:InvokeServer("AbandonQuest")
@@ -77,15 +107,16 @@ function FarmLevel:Start()
                 -- SISTEMA DE MOVIMENTAÇÃO E PEGAR MISSÃO (BYPASS TOTAL)
                 -- ============================================================
                 if not AutoQuest:HasQuest() then
+                    removeAnchor() -- Desliga a âncora para poder andar/teleportar até o NPC livremente
                     local npcTargetCFrame = CFrame.new(QuestData.QuestPosition) * CFrame.new(0, 12, 0)
 
                     if Tween and Tween.MoveTo then
                         Tween:MoveTo(npcTargetCFrame)
                     else
-                        LocalPlayer.Character.HumanoidRootPart.CFrame = npcTargetCFrame
+                        hrp.CFrame = npcTargetCFrame
                     end
                     
-                    local distanceToNPC = (LocalPlayer.Character.HumanoidRootPart.Position - QuestData.QuestPosition).Magnitude
+                    local distanceToNPC = (hrp.Position - QuestData.QuestPosition).Magnitude
                     
                     if distanceToNPC < 25 then
                         task.wait(0.05) 
@@ -115,8 +146,16 @@ function FarmLevel:Start()
                     if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
                         if Weapon and Weapon.Equip then Weapon:Equip() end 
                         
-                        -- Fica "colado" no mob atual
-                        LocalPlayer.Character.HumanoidRootPart.CFrame = targetMob.HumanoidRootPart.CFrame * CFrame.new(0, attackHeight, attackDistance)
+                        -- Ativa o estabilizador de física para parar de tremer
+                        updateAnchor(character, hrp)
+                        
+                        -- Define a posição exata acima do mob
+                        local targetCFrame = targetMob.HumanoidRootPart.CFrame * CFrame.new(0, attackHeight, attackDistance)
+                        
+                        -- Só atualiza o CFrame se houver uma distância relevante (evita micro-tremores)
+                        if (hrp.Position - targetCFrame.Position).Magnitude > 1 then
+                            hrp.CFrame = targetCFrame
+                        end
                         
                         if Settings.BringMobs and BringMob and BringMob.Cluster then 
                             BringMob:Cluster(QuestData.Enemy) 
@@ -126,28 +165,29 @@ function FarmLevel:Start()
                             Combat:Attack() 
                         end
                     else
-                        -- Corre atrás dos spawns vazios
+                        -- Se não achou o mob, remove a âncora para se movimentar até o spawn deles
+                        removeAnchor()
                         if QuestData.EnemyPosition then
-                            -- Usa verificação de typeof para evitar erro caso EnemyPosition não seja Vector3
                             local targetPos = typeof(QuestData.EnemyPosition) == "Vector3" and CFrame.new(QuestData.EnemyPosition) or QuestData.EnemyPosition
                             
                             if Tween and Tween.MoveTo then
                                 Tween:MoveTo(targetPos)
                             else
-                                LocalPlayer.Character.HumanoidRootPart.CFrame = targetPos
+                                hrp.CFrame = targetPos
                             end
                         end
                     end
                 end
             end)
         end
+        removeAnchor()
     end)
 end
 
--- Função vital para sua UI conseguir desligar o Farm completamente
 function FarmLevel:Stop()
     self.Enabled = false
     loopRunning = false
+    removeAnchor()
 end
 
 return FarmLevel
