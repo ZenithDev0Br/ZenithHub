@@ -8,13 +8,13 @@ local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
 local TweenInfoBring = TweenInfo.new(
-    0.45, -- Velocidade suave idêntica ao Zyn Hub
+    0.3, -- Ficou um pouco mais rápido para puxar de longe antes do bicho resetar
     Enum.EasingStyle.Linear,
     Enum.EasingDirection.Out
 )
 
-local MaxBringMobs = 3  -- Limite seguro contra lag e ban
-local BringRange = 250   -- Alcance máximo do puxão
+local MaxBringMobs = 10  -- Aumentado para pegar todos os macacos da Jungle
+local BringRange = 1000   -- Aumentado drasticamente para cobrir as ilhas da Jungle
 
 function BringMob:Cluster(enemyName)
     if not self.Active then return end
@@ -23,45 +23,22 @@ function BringMob:Cluster(enemyName)
     local Root = Character and Character:FindFirstChild("HumanoidRootPart")
     if not Root then return end
 
-    -- Coleta as configurações da UI/Config de forma segura
     local ZenithHub = getgenv().ZenithHub
     local Settings = ZenithHub and ZenithHub.Modules and ZenithHub.Modules.FarmSettings
     
-    -- Verifica se o toggle de "Bring Mobs" está ativo na sua UI
     if Settings and Settings.BringMobs == false then return end
 
-    -- Ativa a rede de física para conseguir puxar de longe
+    -- Força a rede de física do Roblox a aceitar controle de alvos distantes
     pcall(function()  
         sethiddenproperty(LocalPlayer, "SimulationRadius", math.huge)  
     end)  
 
     local folder = Workspace:FindFirstChild("Enemies") or Workspace
-    local baseEnemy = nil
-
-    -- 1️⃣ PASSO: Encontra o primeiro monstro vivo para servir de "âncora" fixa no chão
-    for _, enemy in pairs(folder:GetChildren()) do
-        if enemy.Name == enemyName and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-            local enemyRoot = enemy:FindFirstChild("HumanoidRootPart")
-            if enemyRoot then
-                baseEnemy = enemy
-                break
-            end
-        end
-    end
-
-    if not baseEnemy then return end
-    local baseRoot = baseEnemy:FindFirstChild("HumanoidRootPart")
-    if not baseRoot then return end
-
-    -- 2️⃣ PASSO: Trava a posição original do monstro no chão (Igual ao Zyn Hub!)
-    if not baseEnemy:GetAttribute("LockedPosition") then
-        baseEnemy:SetAttribute("LockedPosition", baseRoot.Position)
-    end
     
-    -- Esta é a posição fixa onde todos os monstros vão se agrupar no chão!
-    local centralTargetPosition = baseEnemy:GetAttribute("LockedPosition")
+    -- CONFIGURAÇÃO DA ÂNCORA: Calcula a posição exata do CHÃO embaixo do seu player flutuante
+    -- Isso garante que, não importa onde você esteja na Jungle, os bichos juntam exatamente abaixo de você!
+    local centralTargetPosition = Vector3.new(Root.Position.X, Root.Position.Y - 20, Root.Position.Z)
 
-    -- 3️⃣ PASSO: Puxa todos os monstros próximos para essa mesma posição fixa
     local count = 0
     for _, enemy in pairs(folder:GetChildren()) do
         if count >= MaxBringMobs then break end
@@ -71,12 +48,13 @@ function BringMob:Cluster(enemyName)
             local enemyHumanoid = enemy:FindFirstChild("Humanoid")
             
             if enemyRoot and enemyHumanoid and not enemyRoot:GetAttribute("Tweening") then
+                -- Calcula a distância real da Jungle
                 local distance = (Root.Position - enemyRoot.Position).Magnitude
                 
                 if distance <= BringRange then
                     count = count + 1
                     
-                    -- Desativa colisões para os monstros não prenderem no cenário
+                    -- Desativa colisão para os macacos atravessarem as árvores e pontes da Jungle
                     for _, part in pairs(enemy:GetChildren()) do
                         if part:IsA("BasePart") then
                             part.CanCollide = false
@@ -85,7 +63,7 @@ function BringMob:Cluster(enemyName)
                     
                     enemyRoot:SetAttribute("Tweening", true)  
 
-                    -- Faz o Tween para a posição fixa no chão, e NÃO para debaixo do player
+                    -- Puxa o monstro para o ponto central de ataque abaixo de você
                     local tween = TweenService:Create(  
                         enemyRoot,  
                         TweenInfoBring,  
