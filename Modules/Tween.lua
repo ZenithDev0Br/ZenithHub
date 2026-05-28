@@ -1,29 +1,31 @@
-local Tween = {}
+local TweenModule = {}
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
-function Tween:MoveTo(targetPosition, speed)
-    speed = speed or 300 -- Velocidade padrão (studs por segundo)
+function TweenModule:MoveTo(targetCFrame)
+    local Character = LocalPlayer.Character
+    local Root = Character and Character:FindFirstChild("HumanoidRootPart")
+    if not Root then return end
+
+    -- Puxa a velocidade configurada no Slider da sua UI
+    local Modules = getgenv().ZenithHub and getgenv().ZenithHub.Modules
+    local Settings = Modules and Modules.FarmSettings
+    local Speed = Settings and Settings.TweenSpeed or 300
+
+    local Distance = (Root.Position - targetCFrame.Position).Magnitude
     
-    local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-    local hrp = char.HumanoidRootPart
+    if Distance < 5 then
+        Root.CFrame = targetCFrame
+        return
+    end
+
+    local Time = Distance / Speed
+    local Info = TweenInfo.new(Time, Enum.EasingStyle.Linear)
+    local Tween = TweenService:Create(Root, Info, {CFrame = targetCFrame})
     
-    local distance = (hrp.Position - targetPosition).Magnitude
-    local duration = distance / speed
-    
-    -- Evita travar se já estiver no local
-    if distance < 5 then return end
-    
-    local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
-    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(targetPosition)})
-    
-    -- Ancorar o personagem durante o vôo evita queda por gravidade
-    hrp.Anchored = true
-    tween:Play()
-    tween.Completed:Wait()
-    hrp.Anchored = false
+    Tween:Play()
+    Tween.Completed:Wait() -- Espera chegar para continuar o farm
 end
 
-return Tween
+return TweenModule
