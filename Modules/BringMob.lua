@@ -13,17 +13,17 @@ function BringMob:Cluster(enemyName)
     local Root = Character and Character:FindFirstChild("HumanoidRootPart")
     if not Root then return end
 
-    -- Puxa as configurações da UI em tempo real para saber onde posicionar os mobs
     local ZenithHub = getgenv().ZenithHub
     local Settings = ZenithHub and ZenithHub.Modules and ZenithHub.Modules.FarmSettings
     local attackHeight = Settings and Settings.AttackHeight or 5
 
-    -- Define o ponto de acúmulo exatamente na altura onde o combate deve acontecer
-    -- Em vez de jogar os mobs para baixo, vamos trazer eles para a altura padrão dos seus ataques
-    local targetCFrame = Root.CFrame * CFrame.new(0, -attackHeight, 0)
+    -- Ponto base: exatamente abaixo do player
+    local basePosition = Root.CFrame * CFrame.new(0, -attackHeight, 0)
 
     local folder = Workspace:FindFirstChild("Enemies") or Workspace
-    
+
+    local index = 0 -- Contador para empilhar os mobs
+
     for _, enemy in pairs(folder:GetChildren()) do
         if enemy.Name == enemyName and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
             local enemyRoot = enemy:FindFirstChild("HumanoidRootPart")
@@ -31,29 +31,35 @@ function BringMob:Cluster(enemyName)
             
             if enemyRoot and enemyHumanoid then
                 local distance = (Root.Position - enemyRoot.Position).Magnitude
-                if distance < 350 then -- Alcance bom para juntar o spot todo
-                    
-                    -- 🔥 CORREÇÃO DA COLISÃO FANTASMA: Desativa a colisão de TODAS as partes do monstro
-                    -- Isso impede que eles se empurrem para dentro das paredes ou do chão!
-                    for _, part in pairs(enemy:GetChildren()) do
+                if distance < 350 then
+
+                    -- Desativa colisão para evitar empurrões físicos
+                    for _, part in pairs(enemy:GetDescendants()) do
                         if part:IsA("BasePart") then
                             part.CanCollide = false
                         end
                     end
-                    
-                    -- Se o monstro estiver vivo, desativa temporariamente os estados de animação que fazem ele andar
+
+                    -- Trava o estado físico do humanoid
                     if enemyHumanoid.Health > 0 then
                         enemyHumanoid:ChangeState(Enum.HumanoidStateType.Physics)
                     end
-                    
-                    -- Prende o monstro na posição exata de ataque, perfeitamente alinhado abaixo de você
+
+                    -- 🔽 Empilha cada mob ligeiramente abaixo do anterior
+                    -- index 0 = primeiro mob fica em -attackHeight
+                    -- index 1 = -attackHeight - 2, etc.
+                    local stackOffset = index * -2 -- 2 studs de separação vertical
+                    local targetCFrame = Root.CFrame * CFrame.new(0, -attackHeight + stackOffset, 0)
+
                     enemyRoot.CFrame = targetCFrame
-                    
-                    -- Zera totalmente as forças físicas para eles não saírem voando com o lag
+
+                    -- Zera física completamente
                     enemyRoot.Velocity = Vector3.new(0, 0, 0)
                     enemyRoot.RotVelocity = Vector3.new(0, 0, 0)
-                    
+
                     if enemyHumanoid.Sit then enemyHumanoid.Sit = false end
+
+                    index = index + 1 -- Próximo mob vai um pouco mais abaixo
                 end
             end
         end
