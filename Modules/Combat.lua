@@ -8,10 +8,7 @@ local LocalPlayer = Players.LocalPlayer
 -- =========================
 
 local attackCooldown = 0.01
-local bringCooldown = 0.1
-
 local lastAttack = 0
-local lastBring = 0
 
 -- =========================
 -- COMBAT FRAMEWORK
@@ -26,7 +23,6 @@ local function GetCombatFramework()
         return nil
     end
 
-    -- Procura CombatFramework em qualquer subpasta
     local Script =
         PlayerScripts:FindFirstChild("CombatFramework", true)
 
@@ -59,7 +55,7 @@ local function GetController()
 end
 
 -- =========================
--- STOP ANIMATIONS
+-- STOP ATTACK ANIMATIONS
 -- =========================
 
 local function StopAnimations(Character)
@@ -100,113 +96,10 @@ local function StopAnimations(Character)
 end
 
 -- =========================
--- HITBOX
--- =========================
-
-local function ExpandHitbox(enemyName)
-
-    local Enemies =
-        workspace:FindFirstChild("Enemies")
-
-    if not Enemies then
-        return
-    end
-
-    for _, enemy in pairs(Enemies:GetChildren()) do
-
-        if enemy.Name == enemyName
-        and enemy:FindFirstChild("Humanoid")
-        and enemy:FindFirstChild("HumanoidRootPart")
-        and enemy.Humanoid.Health > 0 then
-
-            local root =
-                enemy.HumanoidRootPart
-
-            root.Size =
-                Vector3.new(25,25,25)
-
-            root.Transparency = 0.7
-            root.CanCollide = false
-
-            enemy.Humanoid.WalkSpeed = 0
-            enemy.Humanoid.JumpPower = 0
-
-            root.Velocity = Vector3.zero
-            root.RotVelocity = Vector3.zero
-
-            pcall(function()
-                enemy.Humanoid:ChangeState(
-                    Enum.HumanoidStateType.Physics
-                )
-            end)
-        end
-    end
-end
-
--- =========================
--- BRING MOB
--- =========================
-
-local function BringMob(enemyName)
-
-    local Character =
-        LocalPlayer.Character
-
-    local HRP =
-        Character
-        and Character:FindFirstChild(
-            "HumanoidRootPart"
-        )
-
-    if not HRP then
-        return
-    end
-
-    local Enemies =
-        workspace:FindFirstChild("Enemies")
-
-    if not Enemies then
-        return
-    end
-
-    for _, enemy in pairs(Enemies:GetChildren()) do
-
-        if enemy.Name == enemyName
-        and enemy:FindFirstChild("Humanoid")
-        and enemy:FindFirstChild("HumanoidRootPart")
-        and enemy.Humanoid.Health > 0 then
-
-            local root =
-                enemy.HumanoidRootPart
-
-            local distance =
-                (root.Position - HRP.Position).Magnitude
-
-            -- Evita puxar mapa inteiro
-            if distance <= 300 then
-
-                root.CanCollide = false
-
-                if enemy:FindFirstChild("Head") then
-                    enemy.Head.CanCollide = false
-                end
-
-                root.Velocity = Vector3.zero
-                root.RotVelocity = Vector3.zero
-
-                root.CFrame =
-                    HRP.CFrame
-                    * CFrame.new(0,0,-5)
-            end
-        end
-    end
-end
-
--- =========================
 -- FAST ATTACK
 -- =========================
 
-function Combat:Attack(enemyName)
+function Combat:Attack()
 
     local Character =
         LocalPlayer.Character
@@ -232,20 +125,6 @@ function Combat:Attack(enemyName)
 
     local currentTime = tick()
 
-    -- Bring separado
-    if enemyName
-    and (currentTime - lastBring)
-    >= bringCooldown then
-
-        lastBring = currentTime
-
-        pcall(function()
-            BringMob(enemyName)
-            ExpandHitbox(enemyName)
-        end)
-    end
-
-    -- Cooldown ataque
     if (currentTime - lastAttack)
     < attackCooldown then
         return
@@ -276,7 +155,7 @@ function Combat:Attack(enemyName)
             -- Equipa arma
             Controller.equipped = true
 
-            -- Ataque real
+            -- Ataque nativo
             if Controller.attack then
                 Controller:attack()
             else
@@ -294,7 +173,7 @@ end
 -- AUTO LOOP
 -- =========================
 
-function Combat:Start(enemyName)
+function Combat:Start()
 
     task.spawn(function()
 
@@ -308,7 +187,7 @@ function Combat:Start(enemyName)
                 )
                 and LocalPlayer.Character.Humanoid.Health > 0 then
 
-                    Combat:Attack(enemyName)
+                    Combat:Attack()
                 end
             end)
         end
