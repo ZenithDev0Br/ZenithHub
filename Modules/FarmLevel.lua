@@ -40,9 +40,7 @@ local function setNoClip(state)
         if character then
             for _, part in ipairs(character:GetChildren()) do
                 if part:IsA("BasePart") then
-                    if part.Name ~= "HumanoidRootPart" then
-                        part.CanCollide = true
-                    end
+                    part.CanCollide = true -- CORREÇÃO: sem exceção para HumanoidRootPart
                 end
             end
         end
@@ -50,26 +48,22 @@ local function setNoClip(state)
 end
 
 function FarmLevel:Start()
-    print("[ZenithDebug] Executando FarmLevel:Start()...")
-    
     local ZenithHub = getgenv().ZenithHub
     local Modules = ZenithHub and ZenithHub.Modules
-    if not Modules then 
-        warn("[ZenithDebug] ERRO CRÍTICO: ZenithHub.Modules não inicializou!")
-        return 
-    end
+    if not Modules then return end
 
-    -- Se já estiver ativado, impede duplicação
-    if self.Enabled then 
-        print("[ZenithDebug] FarmLevel já está ativo. Cancelando comando repetido.")
-        return 
-    end 
-    
-    self.Enabled = true
-    currentLoopID = currentLoopID + 1 
+    local AutoQuest = Modules.AutoQuest
+    local Tween     = Modules.Tween
+    local Combat    = Modules.Combat
+    local Weapon    = Modules.Weapon
+    local BringMob  = Modules.BringMob
+    local Settings  = Modules.FarmSettings
+
+    if self.Enabled then return end
+
+    currentLoopID = currentLoopID + 1
     local myLoopID = currentLoopID
-
-    print("[ZenithDebug] Loop iniciado com sucesso! ID da Thread:", myLoopID)
+    self.Enabled = true
 
     task.spawn(function()
         while self.Enabled and currentLoopID == myLoopID do
@@ -77,15 +71,6 @@ function FarmLevel:Start()
             
             if currentLoopID ~= myLoopID then break end
 
-            -- Verifica os módulos dinamicamente a cada volta para evitar travamentos por delay de load
-            local AutoQuest = Modules.AutoQuest
-            local Tween     = Modules.Tween
-            local Combat    = Modules.Combat
-            local Weapon    = Modules.Weapon
-            local BringMob  = Modules.BringMob
-            local Settings  = Modules.FarmSettings
-
-            -- Pega o status do botão (UI local ou _G global da Zyn Hub)
             local isFarmActive = false
             if Settings and Settings.AutoFarmLevel then
                 isFarmActive = true
@@ -95,7 +80,6 @@ function FarmLevel:Start()
                 isFarmActive = true
             end
 
-            -- Se o botão estiver desligado, limpa o boneco imediatamente e espera
             if not isFarmActive then
                 local character = LocalPlayer.Character
                 local hrp = character and character:FindFirstChild("HumanoidRootPart")
@@ -105,17 +89,6 @@ function FarmLevel:Start()
                 continue
             end
             
-            -- PROTEÇÃO EXTREMA: Se o AutoQuest sumiu, avisa no console e não crasha o loop
-            if not AutoQuest then
-                warn("[ZenithDebug] Loop bloqueado: Módulo 'AutoQuest' não foi encontrado em ZenithHub.Modules!")
-                local character = LocalPlayer.Character
-                local hrp = character and character:FindFirstChild("HumanoidRootPart")
-                setCharacterAnchor(hrp, false)
-                setNoClip(false)
-                task.wait(1)
-                continue
-            end
-
             pcall(function()
                 local character = LocalPlayer.Character
                 local hrp = character and character:FindFirstChild("HumanoidRootPart")
@@ -129,9 +102,7 @@ function FarmLevel:Start()
                     setNoClip(true)
                 end
 
-                -- ============================================================
                 -- ESCUDO ANTI-DIÁLOGO
-                -- ============================================================
                 local MainGui = LocalPlayer:FindFirstChild("PlayerGui") and LocalPlayer.PlayerGui:FindFirstChild("Main")
                 if MainGui then
                     if MainGui:FindFirstChild("Dialogue") and MainGui.Dialogue.Visible then
@@ -142,28 +113,30 @@ function FarmLevel:Start()
                     end
                 end
 
-                local QuestData = AutoQuest:GetQuestData()
+                local QuestData = AutoQuest and AutoQuest:GetQuestData()
                 if not QuestData then return end
 
-                -- ============================================================
                 -- PROTEÇÃO CONTRA BOSS
-                -- ============================================================
                 if AutoQuest:HasQuest() then
                     local nomeInimigo = QuestData.Enemy:lower()
-                    if nomeInimigo:match("king") or nomeInimigo:match("admiral") or nomeInimigo:match("warden") or nomeInimigo:match("cyborg") or nomeInimigo:match("bobby") or nomeInimigo:match("yeti") or nomeInimigo:match("jeremy") or nomeInimigo:match("fajita") or nomeInimigo:match("tide") then
+                    local isBoss = nomeInimigo:match("king") or nomeInimigo:match("admiral")
+                        or nomeInimigo:match("warden") or nomeInimigo:match("cyborg")
+                        or nomeInimigo:match("bobby") or nomeInimigo:match("yeti")
+                        or nomeInimigo:match("jeremy") or nomeInimigo:match("fajita")
+                        or nomeInimigo:match("tide")
+
+                    if isBoss then
                         setCharacterAnchor(hrp, false)
-                        local Remote = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
+                        local Remote = ReplicatedStorage:FindFirstChild("Remotes")
+                            and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
                         if Remote then
                             Remote:InvokeServer("AbandonQuest")
-                            task.wait(0.2)
-                            return
                         end
+                        return
                     end
                 end
 
-                -- ============================================================
                 -- LOGICA 1: PEGAR MISSÃO
-                -- ============================================================
                 if not AutoQuest:HasQuest() then
                     setCharacterAnchor(hrp, false) 
                     
@@ -186,9 +159,7 @@ function FarmLevel:Start()
                         task.wait(0.2)
                     end
                 
-                -- ============================================================
                 -- LOGICA 2: ATACAR MONSTROS
-                -- ============================================================
                 else
                     local targetMob = nil
                     local folder = Workspace:FindFirstChild("Enemies") or Workspace
@@ -252,9 +223,8 @@ function FarmLevel:Start()
 end
 
 function FarmLevel:Stop()
-    print("[ZenithDebug] Chamando FarmLevel:Stop()...")
     self.Enabled = false
-    currentLoopID = currentLoopID + 1 
+    currentLoopID = currentLoopID + 1
     
     local character = LocalPlayer.Character
     local hrp = character and character:FindFirstChild("HumanoidRootPart")
