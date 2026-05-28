@@ -21,20 +21,30 @@ local function GetCombatFramework()
     local PlayerScripts = LocalPlayer:FindFirstChild("PlayerScripts")
     if not PlayerScripts then return nil end
 
-    local Script = PlayerScripts:FindFirstChild("CombatFramework", true)
+    -- CORREÇÃO: No Blox Fruits, o framework roda dentro do "LocalScript" principal
+    local Script = PlayerScripts:FindFirstChild("LocalScript") 
+        or PlayerScripts:FindFirstChild("LocalScript", true) 
+        or PlayerScripts:FindFirstChild("Main")
+        
     if not Script then return nil end
 
     local ok, env = pcall(function()
         return getsenv(Script)
     end)
 
+    -- Retorna o ambiente do script onde os hubs encontram as variáveis de ataque
     return (ok and env) or nil
 end
 
 local function GetController()
     local Framework = GetCombatFramework()
-    if Framework and Framework.activeController then
-        return Framework.activeController
+    -- Procura a tabela CombatFramework dentro das variáveis globais do script local
+    if Framework then
+        if Framework.CombatFramework and Framework.CombatFramework.activeController then
+            return Framework.CombatFramework.activeController
+        elseif Framework.activeController then
+            return Framework.activeController
+        end
     end
     return nil
 end
@@ -75,9 +85,15 @@ function Combat:Attack()
     local Humanoid = Character:FindFirstChildOfClass("Humanoid")
     if not Humanoid or Humanoid.Health <= 0 then return end
 
-    -- Busca tool no personagem ou na mochila como fallback
+    -- CORREÇÃO: Se a ferramenta estiver na mochila, força o personagem a equipar primeiro!
     local Tool = Character:FindFirstChildOfClass("Tool")
-        or LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
+    if not Tool then
+        local BackpackTool = LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
+        if BackpackTool and Humanoid then
+            Humanoid:EquipTool(BackpackTool)
+            Tool = BackpackTool
+        end
+    end
 
     if not Tool then return end
 
@@ -96,6 +112,7 @@ function Combat:Attack()
         local Controller = GetController()
 
         if Controller then
+            -- Fast attack real injetando valores no framework nativo
             Controller.timeToNextAttack = 0
             Controller.hitboxMagnitude  = hitbox
             Controller.attacking        = false
@@ -109,6 +126,7 @@ function Combat:Attack()
                 Tool:Activate()
             end
         else
+            -- Se o exploit falhar no env, o soco físico na mão vai funcionar como salvaguarda
             Tool:Activate()
         end
     end)
@@ -119,16 +137,16 @@ end
 -- =========================
 
 function Combat:Start()
-    if loopRunning then return end -- Bloqueia loops duplicados
+    if loopRunning then return end 
     loopRunning = true
     self.Active = true
 
     task.spawn(function()
         while loopRunning do
-            task.wait(attackCooldown) -- Respeita o cooldown real
+            task.wait(attackCooldown) 
 
             if not self.Active then
-                task.wait(0.1) -- Pausa leve quando inativo
+                task.wait(0.1) 
                 continue
             end
 
