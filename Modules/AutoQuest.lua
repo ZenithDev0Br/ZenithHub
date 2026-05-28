@@ -6,7 +6,7 @@ local LocalPlayer = Players.LocalPlayer
 -- [[ BANCO DE DADOS ATUALIZADO SEM BOSSES E COM NOMES TÉCNICOS CORRETOS ]] --
 _G.QuestConfig = {
     -- === SEA 1 ===
-    { MinLevel = 0,    MaxLevel = 9,    NPCName = "Bandit Quest Giver",       QuestNameInGame = "BanditQuest",        QuestNumber = 1, MobName = "Bandit" },
+    { MinLevel = 0,    MaxLevel = 9,    NPCName = "Bandit Quest Giver",       QuestNameInGame = "Bandits",        QuestNumber = 1, MobName = "Bandit" },
     { MinLevel = 10,   MaxLevel = 14,   NPCName = "Adventurer",               QuestNameInGame = "JungleQuest",        QuestNumber = 1, MobName = "Monkey" },
     { MinLevel = 15,   MaxLevel = 29,   NPCName = "Adventurer",               QuestNameInGame = "JungleQuest",        QuestNumber = 2, MobName = "Gorilla" },
     { MinLevel = 30,   MaxLevel = 39,   NPCName = "Pirate Adventurer",        QuestNameInGame = "BuggyQuest",         QuestNumber = 1, MobName = "Pirate" },
