@@ -40,10 +40,7 @@ local function setNoClip(state)
         if character then
             for _, part in ipairs(character:GetChildren()) do
                 if part:IsA("BasePart") then
-                    -- SEGURANÇA MÁXIMA: Evita bugar a física padrão do HRP ao desligar
-                    if part.Name ~= "HumanoidRootPart" then
-                        part.CanCollide = true
-                    end
+                    part.CanCollide = true
                 end
             end
         end
@@ -71,7 +68,7 @@ function FarmLevel:Start()
     task.spawn(function()
         while self.Enabled and currentLoopID == myLoopID do
             task.wait(0.05)
-            
+
             if currentLoopID ~= myLoopID then break end
 
             local isFarmActive = false
@@ -91,11 +88,11 @@ function FarmLevel:Start()
                 task.wait(0.2)
                 continue
             end
-            
+
             pcall(function()
                 local character = LocalPlayer.Character
                 local hrp = character and character:FindFirstChild("HumanoidRootPart")
-                
+
                 if not character or not hrp or character.Humanoid.Health <= 0 then
                     setNoClip(false)
                     return
@@ -139,49 +136,28 @@ function FarmLevel:Start()
                     end
                 end
 
-                -- ============================================================
-                -- LOGICA 1: PEGAR MISSÃO (CORRIGIDA)
-                -- ============================================================
+                -- LOGICA 1: PEGAR MISSÃO
                 if not AutoQuest:HasQuest() then
-                    setCharacterAnchor(hrp, false) 
-                    
-                    -- CORREÇÃO: Tratamento dinâmico se a QuestPosition for CFrame ou Vector3
-                    local npcPosition = QuestData.QuestPosition
-                    local npcTargetCFrame
-                    
-                    if typeof(npcPosition) == "CFrame" then
-                        npcTargetCFrame = npcPosition * CFrame.new(0, 12, 0)
-                    elseif typeof(npcPosition) == "Vector3" then
-                        npcTargetCFrame = CFrame.new(npcPosition) * CFrame.new(0, 12, 0)
-                    else
-                        return -- Tipo inválido retornado pelo módulo
-                    end
+                    setCharacterAnchor(hrp, false)
 
-                    -- Movimentação até o NPC
+                    local npcTargetCFrame = CFrame.new(QuestData.QuestPosition) * CFrame.new(0, 12, 0)
+
                     if Tween and Tween.MoveTo then
                         Tween:MoveTo(npcTargetCFrame)
                     else
                         hrp.CFrame = npcTargetCFrame
                     end
-                    
-                    -- Extrai a posição pura em Vector3 para calcular a distância real
-                    local rawNpcPos = typeof(npcPosition) == "CFrame" and npcPosition.Position or npcPosition
-                    local distanceToNPC = (hrp.Position - rawNpcPos).Magnitude
-                    
-                    -- Se estiver perto o suficiente, dispara o Remote da missão de forma estável
+
+                    local distanceToNPC = (hrp.Position - QuestData.QuestPosition).Magnitude
+
                     if distanceToNPC < 30 then
-                        setCharacterAnchor(hrp, true) -- Fixa o boneco na frente do NPC para não bugar a fala
-                        local Remote = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
-                        if Remote then
-                            Remote:InvokeServer("StartQuest", QuestData.QuestName, QuestData.QuestID)
-                        end
-                        task.wait(0.3) -- Delay necessário para o servidor computar que aceitou a Quest
+                        setCharacterAnchor(hrp, true)
+                        AutoQuest:StartQuest()
+                        task.wait(0.5) -- aguarda GUI atualizar antes do próximo HasQuest()
                         setCharacterAnchor(hrp, false)
                     end
-                
-                -- ============================================================
+
                 -- LOGICA 2: ATACAR MONSTROS
-                -- ============================================================
                 else
                     local targetMob = nil
                     local folder = Workspace:FindFirstChild("Enemies") or Workspace
@@ -192,38 +168,40 @@ function FarmLevel:Start()
                         end
                     end
 
-                    local attackHeight = (Settings and Settings.AttackHeight) or (_G.SaveData and _G.SaveData["AttackHeight_Save"]) or 22
+                    local attackHeight   = (Settings and Settings.AttackHeight)   or (_G.SaveData and _G.SaveData["AttackHeight_Save"])   or 22
                     local attackDistance = (Settings and Settings.AttackDistance) or (_G.SaveData and _G.SaveData["AttackDistance_Save"]) or 0
 
                     if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
-                        if Weapon and Weapon.Equip then Weapon:Equip() end 
-                        
+                        if Weapon and Weapon.Equip then Weapon:Equip() end
+
                         local targetCFrame = targetMob.HumanoidRootPart.CFrame * CFrame.new(0, attackHeight, attackDistance)
-                        
+
                         if (hrp.Position - targetCFrame.Position).Magnitude > 1 then
-                            setCharacterAnchor(hrp, false) 
+                            setCharacterAnchor(hrp, false)
                             hrp.CFrame = targetCFrame
-                            task.wait(0.01) 
+                            task.wait(0.01)
                         end
-                        
+
                         if currentLoopID == myLoopID then
-                            setCharacterAnchor(hrp, true) 
+                            setCharacterAnchor(hrp, true)
                         end
-                        
+
                         local bringMobsActive = (Settings and Settings.BringMobs) or (_G.SaveData and _G.SaveData["BringMobs_Save"])
-                        if bringMobsActive and BringMob and BringMob.Cluster then 
-                            BringMob:Cluster(QuestData.Enemy) 
+                        if bringMobsActive and BringMob and BringMob.Cluster then
+                            BringMob:Cluster(QuestData.Enemy)
                         end
 
                         local fastAttackActive = (Settings and Settings.FastAttack) or (_G.SaveData and _G.SaveData["FastAttack_Save"])
-                        if fastAttackActive and Combat and Combat.Attack then 
-                            Combat:Attack() 
+                        if fastAttackActive and Combat and Combat.Attack then
+                            Combat:Attack()
                         end
                     else
                         setCharacterAnchor(hrp, false)
                         if QuestData.EnemyPosition then
-                            local targetPos = typeof(QuestData.EnemyPosition) == "Vector3" and CFrame.new(QuestData.EnemyPosition) or QuestData.EnemyPosition
-                            
+                            local targetPos = typeof(QuestData.EnemyPosition) == "Vector3"
+                                and CFrame.new(QuestData.EnemyPosition)
+                                or QuestData.EnemyPosition
+
                             if Tween and Tween.MoveTo then
                                 Tween:MoveTo(targetPos)
                             else
@@ -234,7 +212,7 @@ function FarmLevel:Start()
                 end
             end)
         end
-        
+
         if currentLoopID == myLoopID then
             local character = LocalPlayer.Character
             local hrp = character and character:FindFirstChild("HumanoidRootPart")
@@ -247,7 +225,7 @@ end
 function FarmLevel:Stop()
     self.Enabled = false
     currentLoopID = currentLoopID + 1
-    
+
     local character = LocalPlayer.Character
     local hrp = character and character:FindFirstChild("HumanoidRootPart")
     setCharacterAnchor(hrp, false)
