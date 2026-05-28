@@ -8,30 +8,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
 local loopRunning = false -- TRAVA DE SEGURANÇA PARA EVITAR LAG
-local bv = nil -- Guardar a força que impede o boneco de cair
 
--- Função interna para congelar o boneco no ar e tirar o lag da gravidade
-local function updateAnchor(character, hrp)
-    if not character or not hrp then return end
-    if not bv or bv.Parent ~= hrp then
-        if hrp:FindFirstChild("ZenithAnchor") then
-            bv = hrp.ZenithAnchor
-        else
-            bv = Instance.new("BodyVelocity")
-            bv.Name = "ZenithAnchor"
-            bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-            bv.Velocity = Vector3.new(0, 0, 0)
-            bv.Parent = hrp
-        end
-    end
-end
-
-local function removeAnchor()
-    if bv then bv:Destroy() bv = nil end
-    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        local oldBv = hrp:FindFirstChild("ZenithAnchor")
-        if oldBv then oldBv:Destroy() end
+-- Função para travar o boneco no ar sem usar forças físicas bugadas
+local function setCharacterAnchor(hrp, state)
+    if hrp and hrp:IsA("BasePart") then
+        hrp.Anchored = state
     end
 end
 
@@ -56,7 +37,9 @@ function FarmLevel:Start()
             task.wait(0.05)
             
             if not Settings or not Settings.AutoFarmLevel then
-                removeAnchor()
+                local character = LocalPlayer.Character
+                local hrp = character and character:FindFirstChild("HumanoidRootPart")
+                setCharacterAnchor(hrp, false)
                 task.wait(0.5)
                 continue
             end
@@ -67,7 +50,6 @@ function FarmLevel:Start()
                 
                 -- Verifica se o personagem está vivo e pronto para o farm
                 if not character or not hrp or character.Humanoid.Health <= 0 then
-                    removeAnchor()
                     return
                 end
 
@@ -93,7 +75,7 @@ function FarmLevel:Start()
                 if AutoQuest:HasQuest() then
                     local nomeInimigo = QuestData.Enemy:lower()
                     if nomeInimigo:match("king") or nomeInimigo:match("admiral") or nomeInimigo:match("warden") or nomeInimigo:match("cyborg") or nomeInimigo:match("bobby") or nomeInimigo:match("yeti") or nomeInimigo:match("jeremy") or nomeInimigo:match("fajita") or nomeInimigo:match("tide") then
-                        removeAnchor()
+                        setCharacterAnchor(hrp, false)
                         local Remote = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
                         if Remote then
                             Remote:InvokeServer("AbandonQuest")
@@ -107,7 +89,8 @@ function FarmLevel:Start()
                 -- SISTEMA DE MOVIMENTAÇÃO E PEGAR MISSÃO (BYPASS TOTAL)
                 -- ============================================================
                 if not AutoQuest:HasQuest() then
-                    removeAnchor() -- Desliga a âncora para poder andar/teleportar até o NPC livremente
+                    setCharacterAnchor(hrp, false) -- Desanconra TOTAL para o Tween funcionar livremente
+                    
                     local npcTargetCFrame = CFrame.new(QuestData.QuestPosition) * CFrame.new(0, 12, 0)
 
                     if Tween and Tween.MoveTo then
@@ -146,16 +129,17 @@ function FarmLevel:Start()
                     if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
                         if Weapon and Weapon.Equip then Weapon:Equip() end 
                         
-                        -- Ativa o estabilizador de física para parar de tremer
-                        updateAnchor(character, hrp)
-                        
-                        -- Define a posição exata acima do mob
+                        -- Posição calculada em relação ao mob
                         local targetCFrame = targetMob.HumanoidRootPart.CFrame * CFrame.new(0, attackHeight, attackDistance)
                         
-                        -- Só atualiza o CFrame se houver uma distância relevante (evita micro-tremores)
+                        -- Só atualiza a posição se o mob se mover de verdade (evita tremedeira visual)
                         if (hrp.Position - targetCFrame.Position).Magnitude > 1 then
+                            setCharacterAnchor(hrp, false) -- Solta só para teleportar
                             hrp.CFrame = targetCFrame
+                            task.wait(0.01) -- Micro-espera para o motor aceitar a física
                         end
+                        
+                        setCharacterAnchor(hrp, true) -- Trava o boneco no ar enquanto bate
                         
                         if Settings.BringMobs and BringMob and BringMob.Cluster then 
                             BringMob:Cluster(QuestData.Enemy) 
@@ -165,8 +149,8 @@ function FarmLevel:Start()
                             Combat:Attack() 
                         end
                     else
-                        -- Se não achou o mob, remove a âncora para se movimentar até o spawn deles
-                        removeAnchor()
+                        -- Se não achou o mob, desancora para voar até o spawn deles
+                        setCharacterAnchor(hrp, false)
                         if QuestData.EnemyPosition then
                             local targetPos = typeof(QuestData.EnemyPosition) == "Vector3" and CFrame.new(QuestData.EnemyPosition) or QuestData.EnemyPosition
                             
@@ -180,14 +164,18 @@ function FarmLevel:Start()
                 end
             end)
         end
-        removeAnchor()
+        local character = LocalPlayer.Character
+        local hrp = character and character:FindFirstChild("HumanoidRootPart")
+        setCharacterAnchor(hrp, false)
     end)
 end
 
 function FarmLevel:Stop()
     self.Enabled = false
     loopRunning = false
-    removeAnchor()
+    local character = LocalPlayer.Character
+    local hrp = character and character:FindFirstChild("HumanoidRootPart")
+    setCharacterAnchor(hrp, false)
 end
 
 return FarmLevel
