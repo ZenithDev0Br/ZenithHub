@@ -1,23 +1,30 @@
 local Settings = {}
 
--- CONFIGURAÇÕES DE ARMA
-Settings.WeaponType = "Melee" -- "Melee", "Sword", "Blox Fruit"
+-- ARMA
+Settings.WeaponType = "Melee"
 
--- COMBAT DEFAULTS
+-- COMBAT
 Settings.FastAttack = true
 Settings.BringMobs = true
 
--- MOVIMENTO (SLIDERS DO FRONTEND)
-Settings.TweenSpeed = 300
-Settings.AttackHeight = 22  -- 🔥 CORRIGIDO: Padrão inicial agora é 22 para não morrer pros NPCs!
+-- HAKI / HABILIDADES
+Settings.AutoKen    = true  -- Ken (Armamento) sempre ativo
+Settings.AutoBuso   = false -- Buso (reativa manualmente)
+Settings.AutoV3V4   = false -- RaceSkill V3/V4
+Settings.AutoAwaken = false -- Awakening V4
+Settings.AutoObs    = false -- Haki da Observação
+
+-- MOVIMENTO
+Settings.TweenSpeed    = 300
+Settings.AttackHeight  = 22
 Settings.AttackDistance = 0
 
--- STATUS DOS FARMS (TOGGLES)
+-- FARMS
 Settings.AutoFarmLevel = false
 Settings.AutoFarmBones = false
-Settings.AutoBoss = false
+Settings.AutoBoss      = false
 
--- 🔥 VÍNCULO GLOBAL: Garante que o BringMob.lua e a UI leiam e alterem a MESMA tabela!
+-- Vínculo global
 getgenv().ZenithHub = getgenv().ZenithHub or {}
 getgenv().ZenithHub.Modules = getgenv().ZenithHub.Modules or {}
 getgenv().ZenithHub.Modules.FarmSettings = Settings
