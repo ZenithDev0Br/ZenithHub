@@ -35,7 +35,6 @@ function FarmLevel:Start()
                 -- PROTEÇÃO SEGUNDA: SE O SEU BONECO ESTIVER COM QUEST DE BOSS, ABANDONA
                 -- ============================================================
                 if AutoQuest:HasQuest() then
-                    -- Lista de verificação para garantir que o script não foque em alvos demorados
                     local nomeInimigo = QuestData.Enemy:lower()
                     if nomeInimigo:match("king") or nomeInimigo:match("admiral") or nomeInimigo:match("warden") or nomeInimigo:match("cyborg") or nomeInimigo:match("bobby") or nomeInimigo:match("yeti") or nomeInimigo:match("jeremy") or nomeInimigo:match("fajita") or nomeInimigo:match("tide") then
                         local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -52,14 +51,16 @@ function FarmLevel:Start()
                 -- SISTEMA DE MOVIMENTAÇÃO E DIÁLOGO COM O QUEST GIVER
                 -- ============================================================
                 if not AutoQuest:HasQuest() then
-                    -- 1. Voa/Teleporta até o NPC da Quest atual do seu nível
+                    -- CORREÇÃO DO SEGUNDO ERRO: Teleporta 12 studs ACIMA do NPC para não bugar a física dele para baixo da terra
+                    local npcTargetCFrame = CFrame.new(QuestData.QuestPosition) * CFrame.new(0, 12, 0)
+
                     if Tween and Tween.MoveTo then
-                        Tween:MoveTo(CFrame.new(QuestData.QuestPosition))
+                        Tween:MoveTo(npcTargetCFrame)
                     else
-                        LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(QuestData.QuestPosition)
+                        LocalPlayer.Character.HumanoidRootPart.CFrame = npcTargetCFrame
                     end
                     
-                    -- 2. Calcula a distância matemática real até o NPC
+                    -- Calcula a distância matemática real até a posição corrigida do NPC
                     local distanceToNPC = (LocalPlayer.Character.HumanoidRootPart.Position - QuestData.QuestPosition).Magnitude
                     
                     -- Se estiver perto o suficiente do Quest Giver
@@ -70,8 +71,9 @@ function FarmLevel:Start()
                         -- Dispara o Remote para pegar a missão
                         AutoQuest:StartQuest()
                         
-                        -- Aguarda o servidor registrar a Quest na tela antes do próximo ciclo do loop
-                        task.wait(0.5)
+                        -- CORREÇÃO DO PRIMEIRO ERRO: Aguarda 1.5 segundos para o servidor processar a missão.
+                        -- Isso impede que o script fique reabrindo e clicando na tela do NPC infinitamente!
+                        task.wait(1.5)
                     end
                 
                 -- ============================================================
@@ -89,7 +91,7 @@ function FarmLevel:Start()
                     end
 
                     -- Configurações de posicionamento da sua UI (Configurações do Farm)
-                    local attackHeight = Settings and Settings.AttackHeight or 5
+                    local attackHeight = Settings and Settings.AttackHeight or 22 -- Padrão seguro sugerido
                     local attackDistance = Settings and Settings.AttackDistance or 0
 
                     if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
