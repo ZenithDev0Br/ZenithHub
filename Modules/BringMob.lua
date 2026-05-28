@@ -13,17 +13,16 @@ function BringMob:Cluster(enemyName)
     local Root = Character and Character:FindFirstChild("HumanoidRootPart")
     if not Root then return end
 
+    -- Puxa as configurações da UI em tempo real
     local ZenithHub = getgenv().ZenithHub
     local Settings = ZenithHub and ZenithHub.Modules and ZenithHub.Modules.FarmSettings
     local attackHeight = Settings and Settings.AttackHeight or 5
 
-    -- Ponto base: exatamente abaixo do player
-    local basePosition = Root.CFrame * CFrame.new(0, -attackHeight, 0)
+    -- Define o ponto exato onde os monstros vão se acumular
+    local targetCFrame = Root.CFrame * CFrame.new(0, -attackHeight, 0)
 
     local folder = Workspace:FindFirstChild("Enemies") or Workspace
-
-    local index = 0 -- Contador para empilhar os mobs
-
+    
     for _, enemy in pairs(folder:GetChildren()) do
         if enemy.Name == enemyName and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
             local enemyRoot = enemy:FindFirstChild("HumanoidRootPart")
@@ -31,35 +30,29 @@ function BringMob:Cluster(enemyName)
             
             if enemyRoot and enemyHumanoid then
                 local distance = (Root.Position - enemyRoot.Position).Magnitude
-                if distance < 350 then
-
-                    -- Desativa colisão para evitar empurrões físicos
-                    for _, part in pairs(enemy:GetDescendants()) do
+                if distance < 350 then -- Alcance do puxão
+                    
+                    -- 🔥 DESATIVA COLISÃO E ÂNCORA DE TODAS AS PEÇAS
+                    for _, part in pairs(enemy:GetChildren()) do
                         if part:IsA("BasePart") then
                             part.CanCollide = false
+                            part.Anchored = false -- Garante que nenhuma peça está travada no chão pelo jogo
                         end
                     end
-
-                    -- Trava o estado físico do humanoid
-                    if enemyHumanoid.Health > 0 then
-                        enemyHumanoid:ChangeState(Enum.HumanoidStateType.Physics)
-                    end
-
-                    -- 🔽 Empilha cada mob ligeiramente abaixo do anterior
-                    -- index 0 = primeiro mob fica em -attackHeight
-                    -- index 1 = -attackHeight - 2, etc.
-                    local stackOffset = index * -2 -- 2 studs de separação vertical
-                    local targetCFrame = Root.CFrame * CFrame.new(0, -attackHeight + stackOffset, 0)
-
+                    
+                    -- Prende o monstro na posição de ataque embaixo de você
                     enemyRoot.CFrame = targetCFrame
-
-                    -- Zera física completamente
+                    
+                    -- 🔥 TRAVA DE FÍSICA AGRESSIVA (Evita que o monstro tente andar ou usar skills)
                     enemyRoot.Velocity = Vector3.new(0, 0, 0)
                     enemyRoot.RotVelocity = Vector3.new(0, 0, 0)
-
+                    
+                    -- Força o Humanoid a entrar em estado de Física para desativar a IA do script do jogo
+                    if enemyHumanoid.Health > 0 and enemyHumanoid:GetState() ~= Enum.HumanoidStateType.Physics then
+                        enemyHumanoid:ChangeState(Enum.HumanoidStateType.Physics)
+                    end
+                    
                     if enemyHumanoid.Sit then enemyHumanoid.Sit = false end
-
-                    index = index + 1 -- Próximo mob vai um pouco mais abaixo
                 end
             end
         end
