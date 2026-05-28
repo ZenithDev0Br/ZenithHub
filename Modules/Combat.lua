@@ -1,5 +1,5 @@
 local Combat = {
-    Active = false
+    Active = true
 }
 
 local Players = game:GetService("Players")
