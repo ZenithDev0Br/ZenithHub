@@ -12,7 +12,7 @@ local Settings = Modules.FarmSettings
 local FarmLevel = Modules.FarmLevel
 
 -- ============================================================================
--- ABA 1: MAIN (STATUS COMPLETO RESTAURADO! 🔱)
+-- ABA 1: MAIN
 -- ============================================================================
 local Tab = Window:MakeTab({ Title = "Main", Icon = "Home" })
 local label = Tab:AddParagraph("Player & World Status", "Aguardando sincronização...")
@@ -23,11 +23,11 @@ task.spawn(function()
         if InfoService and InfoService.Data then
             local d = InfoService.Data
             local text = string.format("Level: %s | Sea: %s\nFruit: %s | Pull Lever: %s\n------------------\nMoon: %s | Time: %s\n------------------\nMirage: %s | Kitsune: %s\nFrozen: %s | Prehistoric: %s\nFactory: %s\n------------------\n🔱 BOSSES STATUS:\n• Cursed Captain: %s\n• Darkbeard: %s\n• Cake Prince: %s\n• Dough King: %s\n• rip_indra: %s",
-                tostring(d.Level or 0), tostring(d.Sea or "Unknown"), tostring(d.Fruit or "None"), 
-                d.PullLever and "🟢 Sim" or "🔴 Não", tostring(d.MoonProgress or "..."), 
-                (d.FullMoon and "🌕 Noite" or "☀️ Dia"), 
-                (d.Mirage and "🟢" or "🔴"), (d.Kitsune and "🟢" or "🔴"), (d.FrozenIsland and "🟢" or "🔴"), (d.PrehistoricIsland and "🟢" or "🔴"), 
-                (d.Factory and "🟢" or "🔴"), 
+                tostring(d.Level or 0), tostring(d.Sea or "Unknown"), tostring(d.Fruit or "None"),
+                d.PullLever and "🟢 Sim" or "🔴 Não", tostring(d.MoonProgress or "..."),
+                (d.FullMoon and "🌕 Noite" or "☀️ Dia"),
+                (d.Mirage and "🟢" or "🔴"), (d.Kitsune and "🟢" or "🔴"), (d.FrozenIsland and "🟢" or "🔴"), (d.PrehistoricIsland and "🟢" or "🔴"),
+                (d.Factory and "🟢" or "🔴"),
                 (d.CursedCaptain and "✅" or "❌"), (d.Darkbeard and "✅" or "❌"), (d.CakePrince and "✅" or "❌"), (d.DoughKing and "✅" or "❌"), (d.RipIndra and "✅" or "❌"))
             pcall(function() label:SetDescription(text) end)
         end
@@ -35,22 +35,8 @@ task.spawn(function()
 end)
 
 -- ============================================================================
--- ABA 2: FARM (Sincronizada com os novos Módulos)
+-- ABA 2: FARM
 -- ============================================================================
-local RunService = game:GetService("RunService")
-task.spawn(function()
-    RunService.Stepped:Connect(function()
-        if Settings and Settings.AutoFarmLevel then
-            local character = game.Players.LocalPlayer.Character
-            if character then
-                for _, part in pairs(character:GetChildren()) do
-                    if part:IsA("BasePart") then part.CanCollide = false end
-                end
-            end
-        end
-    end)
-end)
-
 local FarmTab = Window:MakeTab({ Title = "Farm", Icon = "Sword" })
 FarmTab:AddSection("Farm Settings")
 
@@ -86,7 +72,6 @@ FarmTab:AddSlider({
     Callback = function(v) if Settings then Settings.TweenSpeed = v end end
 })
 
--- 🔥 CORRIGIDO: Agora o padrão inicial é 22 (altura segura) e o máximo vai até 50 studs!
 FarmTab:AddSlider({
     Name = "Attack Height", Min = 0, Max = 50, Default = (Settings and Settings.AttackHeight) or 22,
     Callback = function(v) if Settings then Settings.AttackHeight = v end end
@@ -104,12 +89,13 @@ FarmTab:AddToggle({
     Default = Settings and Settings.AutoFarmLevel or false,
     Callback = function(v)
         if Settings then Settings.AutoFarmLevel = v end
-        
+
         FarmLevel = Modules.FarmLevel or FarmLevel
         if FarmLevel then
-            FarmLevel.Enabled = v
             if v then
                 FarmLevel:Start()
+            else
+                FarmLevel:Stop() -- CORREÇÃO: agora chama Stop() ao desligar
             end
         else
             warn("[ZenithHub] Módulo FarmLevel não encontrado ao ativar Toggle.")
