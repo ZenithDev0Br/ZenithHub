@@ -7,6 +7,8 @@ local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
+local loopRunning = false -- TRAVA DE SEGURANÇA PARA EVITAR LAG
+
 function FarmLevel:Start()
     local ZenithHub = getgenv().ZenithHub
     local Modules = ZenithHub and ZenithHub.Modules
@@ -19,9 +21,20 @@ function FarmLevel:Start()
     local BringMob  = Modules.BringMob
     local Settings  = Modules.FarmSettings
 
+    -- Impede a criação de múltiplos loops se o cara clicar várias vezes no botão
+    if loopRunning then return end 
+    loopRunning = true
+    self.Enabled = true
+
     task.spawn(function()
-        while self.Enabled and Settings.AutoFarmLevel do
+        while loopRunning and self.Enabled do
             task.wait(0.05)
+            
+            -- Se a tabela de configurações sumir ou o toggle for desativado, o loop pausa sem crashar
+            if not Settings or not Settings.AutoFarmLevel then
+                task.wait(0.5)
+                continue
+            end
             
             pcall(function()
                 -- Verifica se o personagem está vivo e pronto para o farm
@@ -34,11 +47,9 @@ function FarmLevel:Start()
                 -- ============================================================
                 local MainGui = LocalPlayer:FindFirstChild("PlayerGui") and LocalPlayer.PlayerGui:FindFirstChild("Main")
                 if MainGui then
-                    -- Fecha a janela de conversa com o NPC instantaneamente se ela abrir
                     if MainGui:FindFirstChild("Dialogue") and MainGui.Dialogue.Visible then
                         MainGui.Dialogue.Visible = false
                     end
-                    -- Fecha o menu cinza de seleção de missão para não dar softlock
                     if MainGui:FindFirstChild("Quest") and MainGui.Quest.Visible and not AutoQuest:HasQuest() then
                         MainGui.Quest.Visible = false
                     end
@@ -48,14 +59,14 @@ function FarmLevel:Start()
                 if not QuestData then return end
 
                 -- ============================================================
-                -- PROTEÇÃO SEGUNDA: SE O SEU BONECO ESTIVER COM QUEST DE BOSS, ABANDONA
+                -- PROTEÇÃO CONTRA BOSS
                 -- ============================================================
                 if AutoQuest:HasQuest() then
                     local nomeInimigo = QuestData.Enemy:lower()
                     if nomeInimigo:match("king") or nomeInimigo:match("admiral") or nomeInimigo:match("warden") or nomeInimigo:match("cyborg") or nomeInimigo:match("bobby") or nomeInimigo:match("yeti") or nomeInimigo:match("jeremy") or nomeInimigo:match("fajita") or nomeInimigo:match("tide") then
                         local Remote = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
                         if Remote then
-                            Remote:InvokeServer("AbandonQuest") -- Cancela a quest do boss imediatamente
+                            Remote:InvokeServer("AbandonQuest")
                             task.wait(0.2)
                             return
                         end
@@ -66,7 +77,6 @@ function FarmLevel:Start()
                 -- SISTEMA DE MOVIMENTAÇÃO E PEGAR MISSÃO (BYPASS TOTAL)
                 -- ============================================================
                 if not AutoQuest:HasQuest() then
-                    -- Teleporta 12 studs ACIMA do NPC para não bugar a física dele nem ativar por toque
                     local npcTargetCFrame = CFrame.new(QuestData.QuestPosition) * CFrame.new(0, 12, 0)
 
                     if Tween and Tween.MoveTo then
@@ -75,20 +85,14 @@ function FarmLevel:Start()
                         LocalPlayer.Character.HumanoidRootPart.CFrame = npcTargetCFrame
                     end
                     
-                    -- Calcula a distância até o NPC
                     local distanceToNPC = (LocalPlayer.Character.HumanoidRootPart.Position - QuestData.QuestPosition).Magnitude
                     
-                    -- Se estiver perto o suficiente do Quest Giver
                     if distanceToNPC < 25 then
                         task.wait(0.05) 
-                        
-                        -- TRUQUE DE MESTRE: Pega a missão direto usando o Remote do Servidor.
-                        -- Isso faz você aceitar o farm sem abrir diálogos ou telas bugadas!
                         local Remote = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
                         if Remote then
                             Remote:InvokeServer("StartQuest", QuestData.QuestName, QuestData.QuestID)
                         end
-                        
                         task.wait(0.2)
                     end
                 
@@ -96,7 +100,6 @@ function FarmLevel:Start()
                 -- ROTINA DE COMBATE (FARM ATIVO DE MONSTROS COMUNS)
                 -- ============================================================
                 else
-                    -- Procura o mob comum correto na Workspace do servidor
                     local targetMob = nil
                     local folder = Workspace:FindFirstChild("Enemies") or Workspace
                     for _, v in pairs(folder:GetChildren()) do
@@ -106,33 +109,32 @@ function FarmLevel:Start()
                         end
                     end
 
-                    -- Configurações de posicionamento da sua UI (Configurações do Farm)
                     local attackHeight = Settings and Settings.AttackHeight or 22 
                     local attackDistance = Settings and Settings.AttackDistance or 0
 
                     if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
-                        -- Equipar ferramenta de ataque (Sword, Melee, Fruit, etc.)
                         if Weapon and Weapon.Equip then Weapon:Equip() end 
                         
-                        -- Posiciona o personagem de forma segura em cima/atrás do hitbox do mob comum
+                        -- Fica "colado" no mob atual
                         LocalPlayer.Character.HumanoidRootPart.CFrame = targetMob.HumanoidRootPart.CFrame * CFrame.new(0, attackHeight, attackDistance)
                         
-                        -- Puxa todos os mobs iguais próximos para o mesmo ponto (Bring Mobs)
                         if Settings.BringMobs and BringMob and BringMob.Cluster then 
                             BringMob:Cluster(QuestData.Enemy) 
                         end
 
-                        -- Executa os cliques de ataque ultra-rápidos (Fast Attack)
                         if Settings.FastAttack and Combat and Combat.Attack then 
                             Combat:Attack() 
                         end
                     else
-                        -- Se os monstros comuns limparam do mapa, vai até a área de spawn deles para forçar a renderização
+                        -- Corre atrás dos spawns vazios
                         if QuestData.EnemyPosition then
+                            -- Usa verificação de typeof para evitar erro caso EnemyPosition não seja Vector3
+                            local targetPos = typeof(QuestData.EnemyPosition) == "Vector3" and CFrame.new(QuestData.EnemyPosition) or QuestData.EnemyPosition
+                            
                             if Tween and Tween.MoveTo then
-                                Tween:MoveTo(CFrame.new(QuestData.EnemyPosition))
+                                Tween:MoveTo(targetPos)
                             else
-                                LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(QuestData.EnemyPosition)
+                                LocalPlayer.Character.HumanoidRootPart.CFrame = targetPos
                             end
                         end
                     end
@@ -140,6 +142,12 @@ function FarmLevel:Start()
             end)
         end
     end)
+end
+
+-- Função vital para sua UI conseguir desligar o Farm completamente
+function FarmLevel:Stop()
+    self.Enabled = false
+    loopRunning = false
 end
 
 return FarmLevel
