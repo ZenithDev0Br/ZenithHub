@@ -5,22 +5,58 @@ local FarmLevel = {
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
-local loopRunning = false -- Evita duplicação de threads em background
+local loopRunning = false
+local noclipConnection = nil
 
--- Gerenciador de física para estabilizar o boneco no ar sem bugar o Tween
+-- Função para travar o boneco no ar sem bugar a física
 local function setCharacterAnchor(hrp, state)
     if hrp and hrp:IsA("BasePart") then
         hrp.Anchored = state
     end
 end
 
+-- Gerenciador de NoClip estrito para não bugar ao desligar
+local function setNoClip(state)
+    if state then
+        if not noclipConnection then
+            noclipConnection = RunService.Stepped:Connect(function()
+                local character = LocalPlayer.Character
+                if character then
+                    for _, part in ipairs(character:GetChildren()) do
+                        if part:IsA("BasePart") and part.CanCollide then
+                            part.CanCollide = false
+                        end
+                    end
+                end
+            end)
+        end
+    else
+        if noclipConnection then
+            noclipConnection:Disconnect()
+            noclipConnection = nil
+        end
+        -- Devolve a colisão normal para o personagem no chão
+        local character = LocalPlayer.Character
+        if character then
+            for _, part in ipairs(character:GetChildren()) do
+                if part:IsA("BasePart") then
+                    -- Evita reativar a colisão do HumanoidRootPart se o jogo exigir
+                    if part.Name ~= "HumanoidRootPart" then
+                        part.CanCollide = true
+                    end
+                end
+            end
+        end
+    end
+end
+
 function FarmLevel:Start()
-    -- Carrega os módulos injetados na tabela central da ZenithHub
     local ZenithHub = getgenv().ZenithHub
     local Modules = ZenithHub and ZenithHub.Modules
-    if not Modules then return warn("❌ ZenithHub Modules não encontrados!") end
+    if not Modules then return end
 
     local AutoQuest = Modules.AutoQuest
     local Tween     = Modules.Tween
@@ -29,7 +65,9 @@ function FarmLevel:Start()
     local BringMob  = Modules.BringMob
     local Settings  = Modules.FarmSettings
 
+    -- Se já estiver rodando, não cria outra thread de loop
     if loopRunning then return end 
+    
     loopRunning = true
     self.Enabled = true
 
@@ -37,11 +75,12 @@ function FarmLevel:Start()
         while loopRunning and self.Enabled do
             task.wait(0.05)
             
-            -- Se desligar o Farm na Interface, limpa o boneco e pausa o loop
+            -- Se a config geral desligar, reseta o boneco e aguarda
             if not Settings or not Settings.AutoFarmLevel then
                 local character = LocalPlayer.Character
                 local hrp = character and character:FindFirstChild("HumanoidRootPart")
                 setCharacterAnchor(hrp, false)
+                setNoClip(false) -- DESLIGA O NOCLIP CASO O TOGGLE GERAL CAIA
                 task.wait(0.5)
                 continue
             end
@@ -50,13 +89,16 @@ function FarmLevel:Start()
                 local character = LocalPlayer.Character
                 local hrp = character and character:FindFirstChild("HumanoidRootPart")
                 
-                -- Se o jogador morrer, aguarda o respawn e solta a física
                 if not character or not hrp or character.Humanoid.Health <= 0 then
+                    setNoClip(false)
                     return
                 end
 
+                -- Garante NoClip ativo durante todo o processo de farm dinâmico
+                setNoClip(true)
+
                 -- ============================================================
-                -- ESCUDO ANTI-DIÁLOGO (BYPASS DA UI DA ZYN HUB)
+                -- ESCUDO ANTI-DIÁLOGO
                 -- ============================================================
                 local MainGui = LocalPlayer:FindFirstChild("PlayerGui") and LocalPlayer.PlayerGui:FindFirstChild("Main")
                 if MainGui then
@@ -72,7 +114,7 @@ function FarmLevel:Start()
                 if not QuestData then return end
 
                 -- ============================================================
-                -- SISTEMA ANTI-BOSS (ABANDONA MISSÕES IMPOSSÍVEIS PRO UP)
+                -- PROTEÇÃO CONTRA BOSS
                 -- ============================================================
                 if AutoQuest:HasQuest() then
                     local nomeInimigo = QuestData.Enemy:lower()
@@ -88,10 +130,10 @@ function FarmLevel:Start()
                 end
 
                 -- ============================================================
-                -- LOGICA 1: NÃO TEM MISSÃO -> ANDAR ATÉ O NPC E PEGAR
+                -- LOGICA 1: PEGAR MISSÃO
                 -- ============================================================
                 if not AutoQuest:HasQuest() then
-                    setCharacterAnchor(hrp, false) -- Desancora pro Tween fluir suave
+                    setCharacterAnchor(hrp, false) 
                     
                     local npcTargetCFrame = CFrame.new(QuestData.QuestPosition) * CFrame.new(0, 12, 0)
 
@@ -113,7 +155,7 @@ function FarmLevel:Start()
                     end
                 
                 -- ============================================================
-                -- LOGICA 2: TEM MISSÃO ATIVA -> ATACAR MONSTROS
+                -- LOGICA 2: ATACAR MONSTROS
                 -- ============================================================
                 else
                     local targetMob = nil
@@ -129,22 +171,18 @@ function FarmLevel:Start()
                     local attackDistance = Settings and Settings.AttackDistance or 0
 
                     if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
-                        -- Força o equip da arma selecionada na UI (Melee / Sword / Fruit)
                         if Weapon and Weapon.Equip then Weapon:Equip() end 
                         
-                        -- Calcula o ponto de ataque seguro baseado nos sliders da UI
                         local targetCFrame = targetMob.HumanoidRootPart.CFrame * CFrame.new(0, attackHeight, attackDistance)
                         
-                        -- Só altera a posição se o monstro se deslocar (Evita o jitter visual do boneco)
                         if (hrp.Position - targetCFrame.Position).Magnitude > 1 then
-                            setCharacterAnchor(hrp, false) -- Libera a física para ajustar a posição
+                            setCharacterAnchor(hrp, false) 
                             hrp.CFrame = targetCFrame
-                            task.wait(0.01) -- Micro-espera necessária para a engine processar
+                            task.wait(0.01) 
                         end
                         
-                        setCharacterAnchor(hrp, true) -- Trava o boneco rigidamente no ar
+                        setCharacterAnchor(hrp, true) 
                         
-                        -- Roda os scripts de agrupar inimigos e bater
                         if Settings.BringMobs and BringMob and BringMob.Cluster then 
                             BringMob:Cluster(QuestData.Enemy) 
                         end
@@ -153,7 +191,6 @@ function FarmLevel:Start()
                             Combat:Attack() 
                         end
                     else
-                        -- Se os monstros morrerem, desancora e voa de volta para o ponto de spawn deles
                         setCharacterAnchor(hrp, false)
                         if QuestData.EnemyPosition then
                             local targetPos = typeof(QuestData.EnemyPosition) == "Vector3" and CFrame.new(QuestData.EnemyPosition) or QuestData.EnemyPosition
@@ -168,19 +205,23 @@ function FarmLevel:Start()
                 end
             end)
         end
-        -- Garante que ao encerrar o script por completo, o boneco caia no chão e não fique preso voando
+        -- Bloco de limpeza caso o loop saia naturalmente
         local character = LocalPlayer.Character
         local hrp = character and character:FindFirstChild("HumanoidRootPart")
         setCharacterAnchor(hrp, false)
+        setNoClip(false)
     end)
 end
 
 function FarmLevel:Stop()
     self.Enabled = false
     loopRunning = false
+    
+    -- Força a limpeza imediata de física e colisão ao clicar no botão
     local character = LocalPlayer.Character
     local hrp = character and character:FindFirstChild("HumanoidRootPart")
     setCharacterAnchor(hrp, false)
+    setNoClip(false)
 end
 
 return FarmLevel
