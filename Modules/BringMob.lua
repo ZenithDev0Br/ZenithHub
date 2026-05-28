@@ -1,85 +1,86 @@
-local BringMob = {
-    Active = true
-}
+local BringMob = {}
 
-local Workspace = game:GetService("Workspace")
+local Teams = game:GetService("Teams")
 local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
 local TweenInfoBring = TweenInfo.new(
-    0.3, -- Ficou um pouco mais rápido para puxar de longe antes do bicho resetar
+    0.45, -- Velocidade de atração idêntica à Zyn Hub
     Enum.EasingStyle.Linear,
     Enum.EasingDirection.Out
 )
 
-local MaxBringMobs = 10  -- Aumentado para pegar todos os macacos da Jungle
-local BringRange = 1000   -- Aumentado drasticamente para cobrir as ilhas da Jungle
+-- Filtro para ignorar bosses e monstros de Raid bugados
+local function IsRaidOrBossMob(mob)
+    local name = mob.Name:lower()
+    if name:find("raid") or name:find("microchip") or name:find("island") then  
+        return true  
+    end  
+    if mob:GetAttribute("IsRaid") or mob:GetAttribute("RaidMob") or mob:GetAttribute("IsBoss") then  
+        return true  
+    end  
+    local hum = mob:FindFirstChild("Humanoid")  
+    if hum and hum.WalkSpeed == 0 then  
+        return true  
+    end  
+    return false
+end
 
 function BringMob:Cluster(enemyName)
-    if not self.Active then return end
-    
-    local Character = LocalPlayer.Character
-    local Root = Character and Character:FindFirstChild("HumanoidRootPart")
-    if not Root then return end
+    local Settings = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
+    local bringRange = Settings and Settings.BringRange or 235
+    local maxBring = Settings and Settings.MaxBringMobs or 3
 
-    local ZenithHub = getgenv().ZenithHub
-    local Settings = ZenithHub and ZenithHub.Modules and ZenithHub.Modules.FarmSettings
-    
-    if Settings and Settings.BringMobs == false then return end
+    local character = LocalPlayer.Character
+    local hrp = character and character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
 
-    -- Força a rede de física do Roblox a aceitar controle de alvos distantes
+    -- Força a rede do Roblox a aceitar controle da física dos monstros ao redor
     pcall(function()  
         sethiddenproperty(LocalPlayer, "SimulationRadius", math.huge)  
     end)  
 
-    local folder = Workspace:FindFirstChild("Enemies") or Workspace
-    
-    -- CONFIGURAÇÃO DA ÂNCORA: Calcula a posição exata do CHÃO embaixo do seu player flutuante
-    -- Isso garante que, não importa onde você esteja na Jungle, os bichos juntam exatamente abaixo de você!
-    local centralTargetPosition = Vector3.new(Root.Position.X, Root.Position.Y - 20, Root.Position.Z)
+    -- O ponto central é onde os monstros vão se agrupar (posição fixa gravada do primeiro mob)
+    local targetMob = Workspace.Enemies:FindFirstChild(enemyName)
+    local targetPos = nil
+
+    if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
+        if not targetMob:GetAttribute("LockedPos") then
+            targetMob:SetAttribute("LockedPos", targetMob.HumanoidRootPart.CFrame)
+        end
+        targetPos = targetMob:GetAttribute("LockedPos").Position
+    else
+        targetPos = hrp.Position
+    end
 
     local count = 0
-    for _, enemy in pairs(folder:GetChildren()) do
-        if count >= MaxBringMobs then break end
+    for _, mob in ipairs(Workspace.Enemies:GetChildren()) do
+        if count >= maxBring then break end
 
-        if enemy.Name == enemyName and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-            local enemyRoot = enemy:FindFirstChild("HumanoidRootPart")
-            local enemyHumanoid = enemy:FindFirstChild("Humanoid")
-            
-            if enemyRoot and enemyHumanoid and not enemyRoot:GetAttribute("Tweening") then
-                -- Calcula a distância real da Jungle
-                local distance = (Root.Position - enemyRoot.Position).Magnitude
-                
-                if distance <= BringRange then
+        if mob.Name == enemyName and mob:FindFirstChild("Humanoid") and mob:FindFirstChild("HumanoidRootPart") then
+            local hum = mob.Humanoid
+            local m_hrp = mob.HumanoidRootPart
+
+            if hum.Health > 0 and not IsRaidOrBossMob(mob) then
+                local distance = (m_hrp.Position - hrp.Position).Magnitude
+
+                if distance <= bringRange and not m_hrp:GetAttribute("Tweening") then
                     count = count + 1
-                    
-                    -- Desativa colisão para os macacos atravessarem as árvores e pontes da Jungle
-                    for _, part in pairs(enemy:GetChildren()) do
-                        if part:IsA("BasePart") then
-                            part.CanCollide = false
+                    m_hrp:SetAttribute("Tweening", true)
+
+                    local tween = TweenService:Create(
+                        m_hrp,
+                        TweenInfoBring,
+                        {CFrame = CFrame.new(targetPos)}
+                    )
+                    tween:Play()
+
+                    tween.Completed:Once(function()
+                        if m_hrp then
+                            m_hrp:SetAttribute("Tweening", false)
                         end
-                    end
-                    
-                    enemyRoot:SetAttribute("Tweening", true)  
-
-                    -- Puxa o monstro para o ponto central de ataque abaixo de você
-                    local tween = TweenService:Create(  
-                        enemyRoot,  
-                        TweenInfoBring,  
-                        { CFrame = CFrame.new(centralTargetPosition) }  
-                    )  
-
-                    tween:Play()  
-                    
-                    tween.Completed:Once(function()  
-                        if enemyRoot then  
-                            enemyRoot:SetAttribute("Tweening", false)  
-                            enemyRoot.Velocity = Vector3.new(0, 0, 0)
-                            if enemyHumanoid:GetState() ~= Enum.HumanoidStateType.Physics then
-                                enemyHumanoid:ChangeState(Enum.HumanoidStateType.Physics)
-                            end
-                        end  
                     end)
                 end
             end
