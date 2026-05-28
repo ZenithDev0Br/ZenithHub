@@ -11,6 +11,10 @@ local Modules = ZenithHub and ZenithHub.Modules or {}
 local Settings = Modules.FarmSettings
 local FarmLevel = Modules.FarmLevel
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CommE = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommE")
+local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
+
 -- ============================================================================
 -- ABA 1: MAIN
 -- ============================================================================
@@ -89,16 +93,11 @@ FarmTab:AddToggle({
     Default = Settings and Settings.AutoFarmLevel or false,
     Callback = function(v)
         if Settings then Settings.AutoFarmLevel = v end
-
         FarmLevel = Modules.FarmLevel or FarmLevel
         if FarmLevel then
-            if v then
-                FarmLevel:Start()
-            else
-                FarmLevel:Stop() -- CORREÇÃO: agora chama Stop() ao desligar
-            end
+            if v then FarmLevel:Start() else FarmLevel:Stop() end
         else
-            warn("[ZenithHub] Módulo FarmLevel não encontrado ao ativar Toggle.")
+            warn("[ZenithHub] Módulo FarmLevel não encontrado.")
         end
     end
 })
@@ -116,6 +115,93 @@ FarmTab:AddToggle({
     Default = Settings and Settings.AutoBoss or false,
     Callback = function(v)
         if Settings then Settings.AutoBoss = v end
+    end
+})
+
+-- ============================================================================
+-- ABA 3: HAKI / HABILIDADES
+-- ============================================================================
+local HakiTab = Window:MakeTab({ Title = "Haki", Icon = "Star" })
+HakiTab:AddSection("Armamento")
+
+-- Ken: loop automático via CollectionService tag (igual Zyn Hub original)
+HakiTab:AddToggle({
+    Name = "Auto Ken (Armamento)",
+    Default = Settings and Settings.AutoKen or true,
+    Callback = function(v)
+        if Settings then Settings.AutoKen = v end
+    end
+})
+
+-- Buso: dispara uma vez ao ligar
+HakiTab:AddToggle({
+    Name = "Auto Buso",
+    Default = Settings and Settings.AutoBuso or false,
+    Callback = function(v)
+        if Settings then Settings.AutoBuso = v end
+        if v then
+            task.spawn(function()
+                while Settings and Settings.AutoBuso do
+                    pcall(function() CommE:FireServer("Buso") end)
+                    task.wait(1)
+                end
+            end)
+        end
+    end
+})
+
+HakiTab:AddSection("Raça / Awakening")
+
+-- V3/V4 da Raça
+HakiTab:AddToggle({
+    Name = "Auto Race V3/V4",
+    Default = Settings and Settings.AutoV3V4 or false,
+    Callback = function(v)
+        if Settings then Settings.AutoV3V4 = v end
+        if v then
+            task.spawn(function()
+                while Settings and Settings.AutoV3V4 do
+                    pcall(function() CommF:InvokeServer("RaceSkill") end)
+                    task.wait(1)
+                end
+            end)
+        end
+    end
+})
+
+-- Awakening V4
+HakiTab:AddToggle({
+    Name = "Auto Awakening V4",
+    Default = Settings and Settings.AutoAwaken or false,
+    Callback = function(v)
+        if Settings then Settings.AutoAwaken = v end
+        if v then
+            task.spawn(function()
+                while Settings and Settings.AutoAwaken do
+                    pcall(function() CommE:FireServer("ActivateAwakening", true) end)
+                    task.wait(1)
+                end
+            end)
+        end
+    end
+})
+
+HakiTab:AddSection("Observação")
+
+-- Haki da Observação
+HakiTab:AddToggle({
+    Name = "Auto Observação",
+    Default = Settings and Settings.AutoObs or false,
+    Callback = function(v)
+        if Settings then Settings.AutoObs = v end
+        if v then
+            task.spawn(function()
+                while Settings and Settings.AutoObs do
+                    pcall(function() CommE:FireServer("Observation", true) end)
+                    task.wait(1)
+                end
+            end)
+        end
     end
 })
 
