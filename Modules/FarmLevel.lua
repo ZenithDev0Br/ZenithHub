@@ -9,16 +9,14 @@ local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
 local noclipConnection = nil
-local currentLoopID = 0 -- Identificador único para cada execução do loop
+local currentLoopID = 0 
 
--- Gerenciador de física para travar o boneco no ar de forma limpa
 local function setCharacterAnchor(hrp, state)
     if hrp and hrp:IsA("BasePart") then
         hrp.Anchored = state
     end
 end
 
--- Gerenciador estrito de NoClip via RunService
 local function setNoClip(state)
     if state then
         if not noclipConnection then
@@ -38,7 +36,6 @@ local function setNoClip(state)
             noclipConnection:Disconnect()
             noclipConnection = nil
         end
-        -- Devolve a colisão normal para as partes do corpo
         local character = LocalPlayer.Character
         if character then
             for _, part in ipairs(character:GetChildren()) do
@@ -53,9 +50,14 @@ local function setNoClip(state)
 end
 
 function FarmLevel:Start()
+    print("[ZenithDebug] Tentando iniciar FarmLevel:Start()...")
+    
     local ZenithHub = getgenv().ZenithHub
     local Modules = ZenithHub and ZenithHub.Modules
-    if not Modules then return end
+    if not Modules then 
+        warn("[ZenithDebug] ERRO CRÍTICO: ZenithHub.Modules não existe globalmente!")
+        return 
+    end
 
     local AutoQuest = Modules.AutoQuest
     local Tween     = Modules.Tween
@@ -64,22 +66,42 @@ function FarmLevel:Start()
     local BringMob  = Modules.BringMob
     local Settings  = Modules.FarmSettings
 
-    -- Se já estiver ativado, não faz nada
-    if self.Enabled then return end 
+    -- Verificação de Módulos Essenciais
+    if not AutoQuest then warn("[ZenithDebug] Módulo AutoQuest ausente!") end
+    if not Tween then warn("[ZenithDebug] Módulo Tween ausente!") end
+
+    if self.Enabled then 
+        print("[ZenithDebug] FarmLevel já estava Enabled. Cancelando duplo clique.")
+        return 
+    end 
     
     self.Enabled = true
-    currentLoopID = currentLoopID + 1 -- Gera um novo ID único para esta thread
+    currentLoopID = currentLoopID + 1 
     local myLoopID = currentLoopID
 
+    print("[ZenithDebug] Loop Thread criada com Sucesso! ID:", myLoopID)
+
     task.spawn(function()
-        -- O loop só roda se o ID dele ainda for o ID atual do script
         while self.Enabled and currentLoopID == myLoopID do
             task.wait(0.05)
             
-            -- Se a ID mudou no meio do caminho, corta a execução na hora (Anti-Ghosting)
             if currentLoopID ~= myLoopID then break end
 
-            if not Settings or not Settings.AutoFarmLevel then
+            -- ============================================================
+            -- DETECTOR DE ESTADO DO TOGGLE (SE NÃO PASSAR DAQUI, O BOTÃO DA UI NÃO ATIVOU A CONFI)
+            -- ============================================================
+            -- Adaptado para aceitar tanto a tabela Settings quanto a global da Zyn Hub (_G.SaveData) se for o caso
+            local isFarmActive = false
+            if Settings and Settings.AutoFarmLevel then
+                isFarmActive = true
+            elseif _G.SaveData and _G.SaveData["AutoFarmLevel_Save"] then -- Fallback para salvar configs da Zyn Hub
+                isFarmActive = true
+            elseif _G.AutoFarmLevel then -- Fallback caso use variável global simples
+                isFarmActive = true
+            end
+
+            if not isFarmActive then
+                -- Se cair aqui, o loop está rodando em background mas esperando o sinal do botão
                 local character = LocalPlayer.Character
                 local hrp = character and character:FindFirstChild("HumanoidRootPart")
                 setCharacterAnchor(hrp, false)
@@ -97,7 +119,6 @@ function FarmLevel:Start()
                     return
                 end
 
-                -- Garante NoClip ativo apenas se esta thread ainda for a dona do script
                 if currentLoopID == myLoopID then
                     setNoClip(true)
                 end
@@ -116,7 +137,10 @@ function FarmLevel:Start()
                 end
 
                 local QuestData = AutoQuest:GetQuestData()
-                if not QuestData then return end
+                if not QuestData then 
+                    -- Se o script printar isso, o seu módulo AutoQuest não está retornando os dados da Missão!
+                    return 
+                end
 
                 -- ============================================================
                 -- PROTEÇÃO CONTRA BOSS
@@ -172,8 +196,9 @@ function FarmLevel:Start()
                         end
                     end
 
-                    local attackHeight = Settings and Settings.AttackHeight or 22 
-                    local attackDistance = Settings and Settings.AttackDistance or 0
+                    -- Pega os valores da UI ou define padrões seguros para não quebrar
+                    local attackHeight = (Settings and Settings.AttackHeight) or (_G.SaveData and _G.SaveData["AttackHeight_Save"]) or 22
+                    local attackDistance = (Settings and Settings.AttackDistance) or (_G.SaveData and _G.SaveData["AttackDistance_Save"]) or 0
 
                     if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
                         if Weapon and Weapon.Equip then Weapon:Equip() end 
@@ -186,16 +211,17 @@ function FarmLevel:Start()
                             task.wait(0.01) 
                         end
                         
-                        -- Só ancora o boneco se a thread ainda for a ativa
                         if currentLoopID == myLoopID then
                             setCharacterAnchor(hrp, true) 
                         end
                         
-                        if Settings.BringMobs and BringMob and BringMob.Cluster then 
+                        local bringMobsActive = (Settings and Settings.BringMobs) or (_G.SaveData and _G.SaveData["BringMobs_Save"])
+                        if bringMobsActive and BringMob and BringMob.Cluster then 
                             BringMob:Cluster(QuestData.Enemy) 
                         end
 
-                        if Settings.FastAttack and Combat and Combat.Attack then 
+                        local fastAttackActive = (Settings and Settings.FastAttack) or (_G.SaveData and _G.SaveData["FastAttack_Save"])
+                        if fastAttackActive and Combat and Combat.Attack then 
                             Combat:Attack() 
                         end
                     else
@@ -214,21 +240,21 @@ function FarmLevel:Start()
             end)
         end
         
-        -- Segurança extra: se o loop terminar naturalmente e for o último loop válido, limpa tudo
         if currentLoopID == myLoopID then
             local character = LocalPlayer.Character
             local hrp = character and character:FindFirstChild("HumanoidRootPart")
             setCharacterAnchor(hrp, false)
             setNoClip(false)
+            print("[ZenithDebug] Loop finalizado de forma limpa.")
         end
     end)
 end
 
 function FarmLevel:Stop()
+    print("[ZenithDebug] Executando FarmLevel:Stop()...")
     self.Enabled = false
-    currentLoopID = currentLoopID + 1 -- Força a invalidação instantânea de qualquer loop que esteja rodando em background
+    currentLoopID = currentLoopID + 1 
     
-    -- Força o reset imediato e absoluto de colisão e âncora
     local character = LocalPlayer.Character
     local hrp = character and character:FindFirstChild("HumanoidRootPart")
     setCharacterAnchor(hrp, false)
