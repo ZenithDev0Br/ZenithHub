@@ -40,7 +40,10 @@ local function setNoClip(state)
         if character then
             for _, part in ipairs(character:GetChildren()) do
                 if part:IsA("BasePart") then
-                    part.CanCollide = true -- CORREÇÃO: sem exceção para HumanoidRootPart
+                    -- SEGURANÇA MÁXIMA: Evita bugar a física padrão do HRP ao desligar
+                    if part.Name ~= "HumanoidRootPart" then
+                        part.CanCollide = true
+                    end
                 end
             end
         end
@@ -136,30 +139,49 @@ function FarmLevel:Start()
                     end
                 end
 
-                -- LOGICA 1: PEGAR MISSÃO
+                -- ============================================================
+                -- LOGICA 1: PEGAR MISSÃO (CORRIGIDA)
+                -- ============================================================
                 if not AutoQuest:HasQuest() then
                     setCharacterAnchor(hrp, false) 
                     
-                    local npcTargetCFrame = CFrame.new(QuestData.QuestPosition) * CFrame.new(0, 12, 0)
+                    -- CORREÇÃO: Tratamento dinâmico se a QuestPosition for CFrame ou Vector3
+                    local npcPosition = QuestData.QuestPosition
+                    local npcTargetCFrame
+                    
+                    if typeof(npcPosition) == "CFrame" then
+                        npcTargetCFrame = npcPosition * CFrame.new(0, 12, 0)
+                    elseif typeof(npcPosition) == "Vector3" then
+                        npcTargetCFrame = CFrame.new(npcPosition) * CFrame.new(0, 12, 0)
+                    else
+                        return -- Tipo inválido retornado pelo módulo
+                    end
 
+                    -- Movimentação até o NPC
                     if Tween and Tween.MoveTo then
                         Tween:MoveTo(npcTargetCFrame)
                     else
                         hrp.CFrame = npcTargetCFrame
                     end
                     
-                    local distanceToNPC = (hrp.Position - QuestData.QuestPosition).Magnitude
+                    -- Extrai a posição pura em Vector3 para calcular a distância real
+                    local rawNpcPos = typeof(npcPosition) == "CFrame" and npcPosition.Position or npcPosition
+                    local distanceToNPC = (hrp.Position - rawNpcPos).Magnitude
                     
-                    if distanceToNPC < 25 then
-                        task.wait(0.05) 
+                    -- Se estiver perto o suficiente, dispara o Remote da missão de forma estável
+                    if distanceToNPC < 30 then
+                        setCharacterAnchor(hrp, true) -- Fixa o boneco na frente do NPC para não bugar a fala
                         local Remote = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
                         if Remote then
                             Remote:InvokeServer("StartQuest", QuestData.QuestName, QuestData.QuestID)
                         end
-                        task.wait(0.2)
+                        task.wait(0.3) -- Delay necessário para o servidor computar que aceitou a Quest
+                        setCharacterAnchor(hrp, false)
                     end
                 
+                -- ============================================================
                 -- LOGICA 2: ATACAR MONSTROS
+                -- ============================================================
                 else
                     local targetMob = nil
                     local folder = Workspace:FindFirstChild("Enemies") or Workspace
