@@ -1,60 +1,32 @@
-local Combat = {}
+local Settings = {}
 
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local CollectionService = game:GetService("CollectionService")
-local VirtualUser = game:GetService("VirtualUser")
-local LocalPlayer = Players.LocalPlayer
+-- ARMA
+Settings.WeaponType = "Melee"
 
-local Remotes = ReplicatedStorage:WaitForChild("Remotes")
-local CommE = Remotes:WaitForChild("CommE")
-local CommF = Remotes:WaitForChild("CommF_")
+-- COMBAT
+Settings.FastAttack  = true
+Settings.AttackSpeed = 0.1  -- velocidade do fast attack (segundos entre cada hit)
+Settings.BringMobs   = true
 
--- Ken: verifica pela tag do CollectionService, igual ao Zyn Hub original
-local function HasKen()
-    local char = LocalPlayer.Character
-    return char and CollectionService:HasTag(char, "Ken")
-end
+-- HAKI / HABILIDADES
+Settings.AutoBuso   = true  -- Buso (Armamento) sempre ativo
+Settings.AutoV3V4   = false
+Settings.AutoAwaken = false
+Settings.AutoObs    = false -- Observação
 
--- Loop do Ken (roda enquanto AutoKen estiver true)
-local kenLoop = nil
-function Combat:StartKen()
-    if kenLoop then return end
-    kenLoop = task.spawn(function()
-        while true do
-            task.wait(0.2)
-            local Settings = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
-            if not (Settings and Settings.AutoKen) then continue end
-            if not HasKen() then
-                pcall(function()
-                    CommE:FireServer("Ken", true)
-                end)
-            end
-        end
-    end)
-end
+-- MOVIMENTO
+Settings.TweenSpeed     = 300
+Settings.AttackHeight   = 22
+Settings.AttackDistance = 0
 
-function Combat:Attack()
-    local character = LocalPlayer.Character
-    if not character or character.Humanoid.Health <= 0 then return end
+-- FARMS
+Settings.AutoFarmLevel = false
+Settings.AutoFarmBones = false
+Settings.AutoBoss      = false
 
-    -- Clique físico simulado para disparar animação
-    pcall(function()
-        VirtualUser:CaptureController()
-        VirtualUser:Button1Down(Vector2.new(300, 300))
-    end)
+-- Vínculo global
+getgenv().ZenithHub = getgenv().ZenithHub or {}
+getgenv().ZenithHub.Modules = getgenv().ZenithHub.Modules or {}
+getgenv().ZenithHub.Modules.FarmSettings = Settings
 
-    -- Remote de ataque do servidor
-    if CommF then
-        task.spawn(function()
-            pcall(function()
-                CommF:InvokeServer("Attack", 0)
-            end)
-        end)
-    end
-end
-
--- Inicia o loop do Ken automaticamente ao carregar o módulo
-Combat:StartKen()
-
-return Combat
+return Settings
