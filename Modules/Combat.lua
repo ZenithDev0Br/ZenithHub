@@ -2,8 +2,8 @@ local Combat = {}
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local CollectionService = game:GetService("CollectionService")
 local RunService = game:GetService("RunService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 local LocalPlayer = Players.LocalPlayer
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
@@ -11,24 +11,24 @@ local CommE = Remotes:WaitForChild("CommE")
 local CommF = Remotes:WaitForChild("CommF_")
 
 -- ============================================================
--- BUSO AUTOMÁTICO
+-- BUSO AUTOMÁTICO (método correto do Zyn Hub original)
 -- ============================================================
-local function HasBuso()
-    local char = LocalPlayer.Character
-    return char and CollectionService:HasTag(char, "Buso")
-end
-
 local busoLoop = nil
 function Combat:StartBuso()
     if busoLoop then return end
     busoLoop = task.spawn(function()
         while true do
-            task.wait(0.2)
+            task.wait(0.1)
             local Settings = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
             if not (Settings and Settings.AutoBuso) then continue end
-            if not HasBuso() then
+
+            local char = LocalPlayer.Character
+            if not char or char.Humanoid.Health <= 0 then continue end
+
+            -- Verifica pela part "HasBuso" no personagem, igual ao Zyn Hub original
+            if not char:FindFirstChild("HasBuso") then
                 pcall(function()
-                    CommE:FireServer("Buso", true)
+                    CommF:InvokeServer("Buso")
                 end)
             end
         end
@@ -39,7 +39,6 @@ end
 -- MAGNUS HITBOX (sempre ativo)
 -- ============================================================
 local hitboxLoop = nil
-
 function Combat:StartHitbox()
     if hitboxLoop then return end
     hitboxLoop = RunService.Stepped:Connect(function()
@@ -60,7 +59,7 @@ function Combat:StartHitbox()
 end
 
 -- ============================================================
--- FAST ATTACK
+-- FAST ATTACK (VirtualInputManager)
 -- ============================================================
 function Combat:Attack()
     local character = LocalPlayer.Character
@@ -70,7 +69,9 @@ function Combat:Attack()
     local attackSpeed = Settings and Settings.AttackSpeed or 0.1
 
     pcall(function()
-        CommF:InvokeServer("Attack", 0)
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+        task.wait(0.05)
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
     end)
 
     task.wait(attackSpeed)
