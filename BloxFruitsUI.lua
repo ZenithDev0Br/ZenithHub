@@ -6,14 +6,18 @@ local Window = Library:MakeWindow({
     ScriptFolder = "ZenithHub"
 })
 
-local ZenithHub = getgenv().ZenithHub
-local Modules = ZenithHub and ZenithHub.Modules or {}
-local Settings = Modules.FarmSettings
-local FarmLevel = Modules.FarmLevel
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CommE = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommE")
 local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
+
+-- Helper para pegar Settings sempre atualizado
+local function S()
+    return getgenv().ZenithHub and getgenv().ZenithHub.Modules and getgenv().ZenithHub.Modules.FarmSettings
+end
+
+local function M()
+    return getgenv().ZenithHub and getgenv().ZenithHub.Modules
+end
 
 -- ============================================================================
 -- ABA 1: MAIN
@@ -23,7 +27,8 @@ local label = Tab:AddParagraph("Player & World Status", "Aguardando sincronizaç
 
 task.spawn(function()
     while task.wait(1) do
-        local InfoService = Modules.InfoService
+        local Modules = M()
+        local InfoService = Modules and Modules.InfoService
         if InfoService and InfoService.Data then
             local d = InfoService.Data
             local text = string.format(
@@ -52,59 +57,62 @@ FarmTab:AddSection("Farm Settings")
 FarmTab:AddDropdown({
     Name = "Select Weapon",
     Options = {"Melee", "Sword", "Blox Fruit", "Gun"},
-    Default = Settings and Settings.WeaponType or "Melee",
+    Default = "Melee",
     Callback = function(v)
-        if Settings then Settings.WeaponType = v end
+        local s = S()
+        if s then s.WeaponType = v end
     end
 })
 
 FarmTab:AddToggle({
     Name = "Fast Attack",
-    Default = Settings and Settings.FastAttack or false,
+    Default = true,
     Callback = function(v)
-        if Settings then Settings.FastAttack = v end
+        local s = S()
+        if s then s.FastAttack = v end
     end
 })
 
--- Velocidade do Fast Attack (menor = mais rápido)
 FarmTab:AddSlider({
     Name = "Attack Speed (delay)",
     Min = 0,
     Max = 1,
-    Default = Settings and Settings.AttackSpeed or 0.1,
+    Default = 0.1,
     Callback = function(v)
-        if Settings then Settings.AttackSpeed = v end
+        local s = S()
+        if s then s.AttackSpeed = v end
     end
 })
 
 FarmTab:AddToggle({
     Name = "Bring Mobs",
-    Default = Settings and Settings.BringMobs or false,
+    Default = true,
     Callback = function(v)
-        if Settings then Settings.BringMobs = v end
+        local s = S()
+        if s then s.BringMobs = v end
     end
 })
 
 FarmTab:AddSection("Haki / Habilidades")
 
--- Buso (Armamento)
 FarmTab:AddToggle({
     Name = "Auto Buso (Armamento)",
-    Default = Settings and Settings.AutoBuso or true,
+    Default = true,
     Callback = function(v)
-        if Settings then Settings.AutoBuso = v end
+        local s = S()
+        if s then s.AutoBuso = v end
     end
 })
 
--- Observação
 FarmTab:AddToggle({
     Name = "Auto Observação",
-    Default = Settings and Settings.AutoObs or false,
+    Default = false,
     Callback = function(v)
-        if Settings then Settings.AutoObs = v end
+        local s = S()
+        if s then s.AutoObs = v end
         if v then
             task.spawn(function()
-                while Settings and Settings.AutoObs do
+                while s and s.AutoObs do
                     pcall(function() CommE:FireServer("Observation", true) end)
                     task.wait(1)
                 end
@@ -113,15 +121,15 @@ FarmTab:AddToggle({
     end
 })
 
--- Race V3/V4
 FarmTab:AddToggle({
     Name = "Auto Race V3/V4",
-    Default = Settings and Settings.AutoV3V4 or false,
+    Default = false,
     Callback = function(v)
-        if Settings then Settings.AutoV3V4 = v end
+        local s = S()
+        if s then s.AutoV3V4 = v end
         if v then
             task.spawn(function()
-                while Settings and Settings.AutoV3V4 do
+                while s and s.AutoV3V4 do
                     pcall(function() CommF:InvokeServer("RaceSkill") end)
                     task.wait(1)
                 end
@@ -130,15 +138,15 @@ FarmTab:AddToggle({
     end
 })
 
--- Awakening V4
 FarmTab:AddToggle({
     Name = "Auto Awakening V4",
-    Default = Settings and Settings.AutoAwaken or false,
+    Default = false,
     Callback = function(v)
-        if Settings then Settings.AutoAwaken = v end
+        local s = S()
+        if s then s.AutoAwaken = v end
         if v then
             task.spawn(function()
-                while Settings and Settings.AutoAwaken do
+                while s and s.AutoAwaken do
                     pcall(function() CommE:FireServer("ActivateAwakening", true) end)
                     task.wait(1)
                 end
@@ -150,31 +158,40 @@ FarmTab:AddToggle({
 FarmTab:AddSection("Movement")
 
 FarmTab:AddSlider({
-    Name = "Tween Speed", Min = 100, Max = 600,
-    Default = Settings and Settings.TweenSpeed or 300,
-    Callback = function(v) if Settings then Settings.TweenSpeed = v end end
+    Name = "Tween Speed", Min = 100, Max = 600, Default = 300,
+    Callback = function(v)
+        local s = S()
+        if s then s.TweenSpeed = v end
+    end
 })
 
 FarmTab:AddSlider({
-    Name = "Attack Height", Min = 0, Max = 50,
-    Default = (Settings and Settings.AttackHeight) or 22,
-    Callback = function(v) if Settings then Settings.AttackHeight = v end end
+    Name = "Attack Height", Min = 0, Max = 50, Default = 22,
+    Callback = function(v)
+        local s = S()
+        if s then s.AttackHeight = v end
+    end
 })
 
 FarmTab:AddSlider({
-    Name = "Attack Distance", Min = -20, Max = 20,
-    Default = Settings and Settings.AttackDistance or 0,
-    Callback = function(v) if Settings then Settings.AttackDistance = v end end
+    Name = "Attack Distance", Min = -20, Max = 20, Default = 0,
+    Callback = function(v)
+        local s = S()
+        if s then s.AttackDistance = v end
+    end
 })
 
 FarmTab:AddSection("Main Farm")
 
 FarmTab:AddToggle({
     Name = "Auto Farm Level",
-    Default = Settings and Settings.AutoFarmLevel or false,
+    Default = false,
     Callback = function(v)
-        if Settings then Settings.AutoFarmLevel = v end
-        FarmLevel = Modules.FarmLevel or FarmLevel
+        local s = S()
+        if s then s.AutoFarmLevel = v end
+
+        local Modules = M()
+        local FarmLevel = Modules and Modules.FarmLevel
         if FarmLevel then
             if v then FarmLevel:Start() else FarmLevel:Stop() end
         else
@@ -185,17 +202,19 @@ FarmTab:AddToggle({
 
 FarmTab:AddToggle({
     Name = "Auto Farm Bones",
-    Default = Settings and Settings.AutoFarmBones or false,
+    Default = false,
     Callback = function(v)
-        if Settings then Settings.AutoFarmBones = v end
+        local s = S()
+        if s then s.AutoFarmBones = v end
     end
 })
 
 FarmTab:AddToggle({
     Name = "Auto Boss",
-    Default = Settings and Settings.AutoBoss or false,
+    Default = false,
     Callback = function(v)
-        if Settings then Settings.AutoBoss = v end
+        local s = S()
+        if s then s.AutoBoss = v end
     end
 })
 
