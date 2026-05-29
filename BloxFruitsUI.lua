@@ -26,13 +26,18 @@ task.spawn(function()
         local InfoService = Modules.InfoService
         if InfoService and InfoService.Data then
             local d = InfoService.Data
-            local text = string.format("Level: %s | Sea: %s\nFruit: %s | Pull Lever: %s\n------------------\nMoon: %s | Time: %s\n------------------\nMirage: %s | Kitsune: %s\nFrozen: %s | Prehistoric: %s\nFactory: %s\n------------------\n🔱 BOSSES STATUS:\n• Cursed Captain: %s\n• Darkbeard: %s\n• Cake Prince: %s\n• Dough King: %s\n• rip_indra: %s",
+            local text = string.format(
+                "Level: %s | Sea: %s\nFruit: %s | Pull Lever: %s\n------------------\nMoon: %s | Time: %s\n------------------\nMirage: %s | Kitsune: %s\nFrozen: %s | Prehistoric: %s\nFactory: %s\n------------------\n🔱 BOSSES STATUS:\n• Cursed Captain: %s\n• Darkbeard: %s\n• Cake Prince: %s\n• Dough King: %s\n• rip_indra: %s",
                 tostring(d.Level or 0), tostring(d.Sea or "Unknown"), tostring(d.Fruit or "None"),
                 d.PullLever and "🟢 Sim" or "🔴 Não", tostring(d.MoonProgress or "..."),
                 (d.FullMoon and "🌕 Noite" or "☀️ Dia"),
-                (d.Mirage and "🟢" or "🔴"), (d.Kitsune and "🟢" or "🔴"), (d.FrozenIsland and "🟢" or "🔴"), (d.PrehistoricIsland and "🟢" or "🔴"),
+                (d.Mirage and "🟢" or "🔴"), (d.Kitsune and "🟢" or "🔴"),
+                (d.FrozenIsland and "🟢" or "🔴"), (d.PrehistoricIsland and "🟢" or "🔴"),
                 (d.Factory and "🟢" or "🔴"),
-                (d.CursedCaptain and "✅" or "❌"), (d.Darkbeard and "✅" or "❌"), (d.CakePrince and "✅" or "❌"), (d.DoughKing and "✅" or "❌"), (d.RipIndra and "✅" or "❌"))
+                (d.CursedCaptain and "✅" or "❌"), (d.Darkbeard and "✅" or "❌"),
+                (d.CakePrince and "✅" or "❌"), (d.DoughKing and "✅" or "❌"),
+                (d.RipIndra and "✅" or "❌")
+            )
             pcall(function() label:SetDescription(text) end)
         end
     end
@@ -61,6 +66,17 @@ FarmTab:AddToggle({
     end
 })
 
+-- Velocidade do Fast Attack (menor = mais rápido)
+FarmTab:AddSlider({
+    Name = "Attack Speed (delay)",
+    Min = 0,
+    Max = 1,
+    Default = Settings and Settings.AttackSpeed or 0.1,
+    Callback = function(v)
+        if Settings then Settings.AttackSpeed = v end
+    end
+})
+
 FarmTab:AddToggle({
     Name = "Bring Mobs",
     Default = Settings and Settings.BringMobs or false,
@@ -69,20 +85,85 @@ FarmTab:AddToggle({
     end
 })
 
+FarmTab:AddSection("Haki / Habilidades")
+
+-- Buso (Armamento)
+FarmTab:AddToggle({
+    Name = "Auto Buso (Armamento)",
+    Default = Settings and Settings.AutoBuso or true,
+    Callback = function(v)
+        if Settings then Settings.AutoBuso = v end
+    end
+})
+
+-- Observação
+FarmTab:AddToggle({
+    Name = "Auto Observação",
+    Default = Settings and Settings.AutoObs or false,
+    Callback = function(v)
+        if Settings then Settings.AutoObs = v end
+        if v then
+            task.spawn(function()
+                while Settings and Settings.AutoObs do
+                    pcall(function() CommE:FireServer("Observation", true) end)
+                    task.wait(1)
+                end
+            end)
+        end
+    end
+})
+
+-- Race V3/V4
+FarmTab:AddToggle({
+    Name = "Auto Race V3/V4",
+    Default = Settings and Settings.AutoV3V4 or false,
+    Callback = function(v)
+        if Settings then Settings.AutoV3V4 = v end
+        if v then
+            task.spawn(function()
+                while Settings and Settings.AutoV3V4 do
+                    pcall(function() CommF:InvokeServer("RaceSkill") end)
+                    task.wait(1)
+                end
+            end)
+        end
+    end
+})
+
+-- Awakening V4
+FarmTab:AddToggle({
+    Name = "Auto Awakening V4",
+    Default = Settings and Settings.AutoAwaken or false,
+    Callback = function(v)
+        if Settings then Settings.AutoAwaken = v end
+        if v then
+            task.spawn(function()
+                while Settings and Settings.AutoAwaken do
+                    pcall(function() CommE:FireServer("ActivateAwakening", true) end)
+                    task.wait(1)
+                end
+            end)
+        end
+    end
+})
+
 FarmTab:AddSection("Movement")
 
 FarmTab:AddSlider({
-    Name = "Tween Speed", Min = 100, Max = 600, Default = Settings and Settings.TweenSpeed or 300,
+    Name = "Tween Speed", Min = 100, Max = 600,
+    Default = Settings and Settings.TweenSpeed or 300,
     Callback = function(v) if Settings then Settings.TweenSpeed = v end end
 })
 
 FarmTab:AddSlider({
-    Name = "Attack Height", Min = 0, Max = 50, Default = (Settings and Settings.AttackHeight) or 22,
+    Name = "Attack Height", Min = 0, Max = 50,
+    Default = (Settings and Settings.AttackHeight) or 22,
     Callback = function(v) if Settings then Settings.AttackHeight = v end end
 })
 
 FarmTab:AddSlider({
-    Name = "Attack Distance", Min = -20, Max = 20, Default = Settings and Settings.AttackDistance or 0,
+    Name = "Attack Distance", Min = -20, Max = 20,
+    Default = Settings and Settings.AttackDistance or 0,
     Callback = function(v) if Settings then Settings.AttackDistance = v end end
 })
 
@@ -115,93 +196,6 @@ FarmTab:AddToggle({
     Default = Settings and Settings.AutoBoss or false,
     Callback = function(v)
         if Settings then Settings.AutoBoss = v end
-    end
-})
-
--- ============================================================================
--- ABA 3: HAKI / HABILIDADES
--- ============================================================================
-local HakiTab = Window:MakeTab({ Title = "Haki", Icon = "Star" })
-HakiTab:AddSection("Armamento")
-
--- Ken: loop automático via CollectionService tag (igual Zyn Hub original)
-HakiTab:AddToggle({
-    Name = "Auto Ken (Armamento)",
-    Default = Settings and Settings.AutoKen or true,
-    Callback = function(v)
-        if Settings then Settings.AutoKen = v end
-    end
-})
-
--- Buso: dispara uma vez ao ligar
-HakiTab:AddToggle({
-    Name = "Auto Buso",
-    Default = Settings and Settings.AutoBuso or false,
-    Callback = function(v)
-        if Settings then Settings.AutoBuso = v end
-        if v then
-            task.spawn(function()
-                while Settings and Settings.AutoBuso do
-                    pcall(function() CommE:FireServer("Buso") end)
-                    task.wait(1)
-                end
-            end)
-        end
-    end
-})
-
-HakiTab:AddSection("Raça / Awakening")
-
--- V3/V4 da Raça
-HakiTab:AddToggle({
-    Name = "Auto Race V3/V4",
-    Default = Settings and Settings.AutoV3V4 or false,
-    Callback = function(v)
-        if Settings then Settings.AutoV3V4 = v end
-        if v then
-            task.spawn(function()
-                while Settings and Settings.AutoV3V4 do
-                    pcall(function() CommF:InvokeServer("RaceSkill") end)
-                    task.wait(1)
-                end
-            end)
-        end
-    end
-})
-
--- Awakening V4
-HakiTab:AddToggle({
-    Name = "Auto Awakening V4",
-    Default = Settings and Settings.AutoAwaken or false,
-    Callback = function(v)
-        if Settings then Settings.AutoAwaken = v end
-        if v then
-            task.spawn(function()
-                while Settings and Settings.AutoAwaken do
-                    pcall(function() CommE:FireServer("ActivateAwakening", true) end)
-                    task.wait(1)
-                end
-            end)
-        end
-    end
-})
-
-HakiTab:AddSection("Observação")
-
--- Haki da Observação
-HakiTab:AddToggle({
-    Name = "Auto Observação",
-    Default = Settings and Settings.AutoObs or false,
-    Callback = function(v)
-        if Settings then Settings.AutoObs = v end
-        if v then
-            task.spawn(function()
-                while Settings and Settings.AutoObs do
-                    pcall(function() CommE:FireServer("Observation", true) end)
-                    task.wait(1)
-                end
-            end)
-        end
     end
 })
 
