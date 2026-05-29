@@ -166,7 +166,7 @@ FarmTab:AddSlider({
 })
 
 FarmTab:AddSlider({
-    Name = "Attack Height", Min = 0, Max = 50, Default = 5,
+    Name = "Attack Height", Min = 0, Max = 50, Default = 15,
     Callback = function(v)
         local s = S()
         if s then s.AttackHeight = v end
