@@ -4,7 +4,6 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-local VirtualInputManager = game:GetService("VirtualInputManager")
 local LocalPlayer = Players.LocalPlayer
 
 local Net = ReplicatedStorage:WaitForChild("Remotes")
@@ -12,19 +11,19 @@ local CommF = Net:WaitForChild("CommF_")
 
 local busoLoop  = nil
 local hitboxLoop = nil
+local lastAttackTime = 0
+local attackCooldown = 0.12 -- Velocidade máxima segura para Remotes sem tomar Kick
 
 -- ============================================================
--- BUSO AUTOMÁTICO (CORRIGIDO)
+-- BUSO AUTOMÁTICO
 -- ============================================================
 function Combat:StartBuso()
     if busoLoop then return end
     busoLoop = task.spawn(function()
         while true do
-            task.wait(0.5) -- Checagem a cada meio segundo é suficiente e poupa memória
-            
+            task.wait(0.5)
             local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
             
-            -- Detecta se o AutoBuso está ligado na UI ou nas tabelas globais
             local isBusoActive = false
             if S and S.AutoBuso then
                 isBusoActive = true
@@ -39,7 +38,6 @@ function Combat:StartBuso()
             local char = LocalPlayer.Character
             if not char or not char:FindFirstChild("Humanoid") or char.Humanoid.Health <= 0 then continue end
             
-            -- Se não estiver com o Haki ativo, invoca o servidor
             if not char:FindFirstChild("HasBuso") then
                 pcall(function()
                     CommF:InvokeServer("Buso")
@@ -50,15 +48,12 @@ function Combat:StartBuso()
 end
 
 -- ============================================================
--- HITBOX EXPANDER (CORRIGIDO: APLICA NOS INIMIGOS)
+-- HITBOX EXPANDER (Aplica nos Inimigos)
 -- ============================================================
 function Combat:StartHitbox()
     if hitboxLoop then return end
-    
     hitboxLoop = RunService.Stepped:Connect(function()
         local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
-        
-        -- Verifica se a Hitbox está ativa ou se usa tamanho padrão (Zyn Hub costuma usar BringMob, mas isso ajuda se faltar mob)
         local hitboxSize = (S and S.HitboxSize) or (_G.SaveData and _G.SaveData["HitboxSize_Save"]) or 15
         
         local enemiesFolder = Workspace:FindFirstChild("Enemies") or Workspace
@@ -68,7 +63,6 @@ function Combat:StartHitbox()
                 if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
                     local hrp = enemy:FindFirstChild("HumanoidRootPart")
                     if hrp and hrp:IsA("BasePart") then
-                        -- Expande a caixa de colisão do monstro com segurança para o clique acertar de longe
                         hrp.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
                         hrp.CanCollide = false
                     end
@@ -79,23 +73,41 @@ function Combat:StartHitbox()
 end
 
 -- ============================================================
--- FAST ATTACK INSTANTÂNEO (MOBILE - CORRIGIDO SEM WAIT)
+-- FAST ATTACK VIA REMOTE (KILL AURA DETECT)
 -- ============================================================
 function Combat:Attack()
     local character = LocalPlayer.Character
     if not character or not character:FindFirstChild("Humanoid") or character.Humanoid.Health <= 0 then return end
 
-    -- Verifica se o player está segurando alguma ferramenta (arma/estilo de luta) antes de clicar
-    if not character:FindFirstChildOfClass("Tool") then return end
+    local weapon = character:FindFirstChildOfClass("Tool")
+    if not weapon then return end -- Só ataca se tiver com a arma na mão
+
+    -- Trava de tempo estrita para o Anticheat do Blox Fruits não dar Kick
+    if os.clock() - lastAttackTime < attackCooldown then return end
+    lastAttackTime = os.clock()
 
     pcall(function()
-        -- Envia os eventos de Touch iniciar e encerrar na mesma execução para clipping instantâneo
-        VirtualInputManager:SendTouchEvent(0, Vector2.new(450, 250), true, game)
-        VirtualInputManager:SendTouchEvent(0, Vector2.new(450, 250), false, game)
+        -- Tenta usar o CombatFramework nativo do jogo (Ataque Fantasma Perfeito)
+        local CombatFramework = require(LocalPlayer.PlayerScripts.CombatFramework)
+        local ActiveController = CombatFramework.activeController
+        
+        if ActiveController and ActiveController.active then
+            -- Força o jogo a disparar o hit físico da arma
+            ActiveController.attack()
+        else
+            -- FALLBACK: Se o framework falhar, injeta o Remote de ataque direto no servidor
+            local remote = ReplicatedStorage:FindFirstChild("Modules") 
+                and ReplicatedStorage.Modules:FindFirstChild("Net") 
+                and ReplicatedStorage.Modules.Net:FindFirstChild("RE/WeaponRegister")
+            
+            if remote then
+                remote:FireServer(weapon.Name)
+            end
+        end
     end)
 end
 
--- Inicia as escutas em background ao carregar o módulo
+-- Inicia em background
 Combat:StartBuso()
 Combat:StartHitbox()
 
