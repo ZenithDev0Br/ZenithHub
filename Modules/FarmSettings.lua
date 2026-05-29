@@ -4,19 +4,19 @@ local Settings = {}
 Settings.WeaponType = "Melee"
 
 -- COMBAT
-Settings.FastAttack = true
-Settings.BringMobs = true
+Settings.FastAttack  = true
+Settings.AttackSpeed = 0.1  -- velocidade do fast attack (segundos entre cada hit)
+Settings.BringMobs   = true
 
 -- HAKI / HABILIDADES
-Settings.AutoKen    = true  -- Ken (Armamento) sempre ativo
-Settings.AutoBuso   = false -- Buso (reativa manualmente)
-Settings.AutoV3V4   = false -- RaceSkill V3/V4
-Settings.AutoAwaken = false -- Awakening V4
-Settings.AutoObs    = false -- Haki da Observação
+Settings.AutoBuso   = true  -- Buso (Armamento) sempre ativo
+Settings.AutoV3V4   = false
+Settings.AutoAwaken = false
+Settings.AutoObs    = false -- Observação
 
 -- MOVIMENTO
-Settings.TweenSpeed    = 300
-Settings.AttackHeight  = 22
+Settings.TweenSpeed     = 300
+Settings.AttackHeight   = 22
 Settings.AttackDistance = 0
 
 -- FARMS
