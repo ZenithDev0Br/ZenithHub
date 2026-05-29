@@ -7,21 +7,21 @@ local VirtualUser = game:GetService("VirtualUser")
 local LocalPlayer = Players.LocalPlayer
 
 local Net = ReplicatedStorage:WaitForChild("Remotes")
-local CommF = Net:FindFirstChild("CommF_")  -- Pode ser nil, usar pcall depois
+local CommF = Net:WaitForChild("CommF_")  -- Voltei para WaitForChild
 
--- Remotes para Fast Attack (Zyn Hub style)
 local RegisterAttack = Net:FindFirstChild("RE/RegisterAttack")
 local RegisterHit = Net:FindFirstChild("RE/RegisterHit")
 local hasFastAttackRemotes = RegisterAttack ~= nil and RegisterHit ~= nil
 
 local busoLoop = nil
-local hitboxConnection = nil
+local hitboxLoop = nil
 local fastAttackLoop = nil
 local autoClickLoop = nil
 
--- ============================================================
--- FUNÇÕES AUXILIARES
--- ============================================================
+-- Captura o controle do VirtualUser uma única vez
+pcall(function()
+    VirtualUser:CaptureController()
+end)
 
 local function isAlive(character)
     local hum = character and character:FindFirstChild("Humanoid")
@@ -37,7 +37,6 @@ local function getNearestEnemy(distanceLimit)
     local closestPart = nil
     local closestDist = distanceLimit or math.huge
 
-    -- Inimigos na pasta Enemies
     local enemiesFolder = workspace:FindFirstChild("Enemies")
     if enemiesFolder then
         for _, enemy in ipairs(enemiesFolder:GetChildren()) do
@@ -54,7 +53,6 @@ local function getNearestEnemy(distanceLimit)
         end
     end
 
-    -- Outros personagens (jogadores)
     local charactersFolder = workspace:FindFirstChild("Characters")
     if charactersFolder then
         local settings = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
@@ -88,15 +86,15 @@ local function getNearestEnemy(distanceLimit)
 end
 
 -- ============================================================
--- BUSO AUTOMÁTICO
+-- BUSO AUTOMÁTICO (original)
 -- ============================================================
 function Combat:StartBuso()
     if busoLoop then return end
     busoLoop = task.spawn(function()
         while true do
             task.wait(0.1)
-            local settings = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
-            if not (settings and settings.AutoBuso) then
+            local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
+            if not (S and S.AutoBuso) then
                 continue
             end
             local char = LocalPlayer.Character
@@ -105,9 +103,7 @@ function Combat:StartBuso()
             end
             if not char:FindFirstChild("HasBuso") then
                 pcall(function()
-                    if CommF then
-                        CommF:InvokeServer("Buso")
-                    end
+                    CommF:InvokeServer("Buso")
                 end)
             end
         end
@@ -115,22 +111,19 @@ function Combat:StartBuso()
 end
 
 -- ============================================================
--- HITBOX EXPANSION (otimizada)
+-- HITBOX EXPANSION (original)
 -- ============================================================
 function Combat:StartHitbox()
-    if hitboxConnection then return end
-    hitboxConnection = RunService.Stepped:Connect(function()
-        local settings = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
-        local hitboxSize = settings and settings.HitboxSize or 15
+    if hitboxLoop then return end
+    hitboxLoop = RunService.Stepped:Connect(function()
+        local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
+        local hitboxSize = S and S.HitboxSize or 15
         local char = LocalPlayer.Character
         if not char then return end
         for _, part in ipairs(char:GetDescendants()) do
             if part:IsA("BasePart") then
                 pcall(function()
-                    -- Tenta propriedades comuns de hitbox
                     sethiddenproperty(part, "HitboxSize", Vector3.new(hitboxSize, hitboxSize, hitboxSize))
-                    -- Fallback para outros jogos
-                    sethiddenproperty(part, "Size", Vector3.new(hitboxSize, hitboxSize, hitboxSize))
                 end)
             end
         end
@@ -138,24 +131,24 @@ function Combat:StartHitbox()
 end
 
 -- ============================================================
--- FAST ATTACK (Zyn Hub style)
+-- FAST ATTACK
 -- ============================================================
 function Combat:FastAttack()
-    local settings = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
-    if not (settings and settings.FastAttack) then return end
+    local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
+    if not (S and S.FastAttack) then return end
 
-    -- Se remotes não existem, usa fallback de clique (somente se AutoClick estiver ativo)
     if not hasFastAttackRemotes then
-        if settings.AutoClick then
+        -- Fallback: só clica se o AutoClick também estiver ativo
+        if S.AutoClick then
             self:Attack()
         end
         return
     end
 
-    local enemy, hitPart, dist = getNearestEnemy(settings.FastAttackRange or 100)
+    local enemy, hitPart = getNearestEnemy(S.FastAttackRange or 100)
     if not enemy or not hitPart then return end
 
-    local others = { { enemy, hitPart } }  -- Formato esperado pelo RegisterHit
+    local others = { { enemy, hitPart } }
     pcall(function()
         RegisterAttack:FireServer(0)
         RegisterHit:FireServer(hitPart, others)
@@ -163,17 +156,16 @@ function Combat:FastAttack()
 end
 
 -- ============================================================
--- AUTO CLICK (VirtualUser)
+-- AUTO CLICK (VirtualUser) - com CaptureController já chamado
 -- ============================================================
 function Combat:Attack()
-    local settings = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
-    if not (settings and settings.AutoClick) then return end
+    local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
+    if not (S and S.AutoClick) then return end
 
     local char = LocalPlayer.Character
     if not char or not isAlive(char) then return end
 
     pcall(function()
-        VirtualUser:CaptureController()
         VirtualUser:Button1Down(Vector2.new(1280, 672))
         task.wait(0.05)
         VirtualUser:Button1Up(Vector2.new(1280, 672))
@@ -181,15 +173,15 @@ function Combat:Attack()
 end
 
 -- ============================================================
--- LOOPS PRINCIPAIS (com verificação dinâmica)
+-- LOOPS
 -- ============================================================
 function Combat:StartFastAttackLoop()
     if fastAttackLoop then return end
     fastAttackLoop = task.spawn(function()
         while true do
             self:FastAttack()
-            local settings = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
-            local delay = (settings and settings.FastAttackDelay) or 0.15
+            local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
+            local delay = S and S.FastAttackDelay or 0.15
             task.wait(delay)
         end
     end)
@@ -200,7 +192,7 @@ function Combat:StartAutoClickLoop()
     autoClickLoop = task.spawn(function()
         while true do
             self:Attack()
-            task.wait(0.1)  -- Delay fixo para clique normal
+            task.wait(0.1)
         end
     end)
 end
