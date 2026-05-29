@@ -61,11 +61,9 @@ function Combat:Attack()
     if not character or character.Humanoid.Health <= 0 then return end
 
     pcall(function()
-        -- Toque down
-        VirtualInputManager:SendTouchEvent(0, Vector2.new(760, 400), Enum.UserInputType.Touch)
+        VirtualInputManager:SendTouchEvent(0, Vector2.new(450, 250), true, game)
         task.wait(0.05)
-        -- Toque up
-        VirtualInputManager:SendTouchEvent(0, Vector2.new(760, 400), Enum.UserInputType.Touch)
+        VirtualInputManager:SendTouchEvent(0, Vector2.new(450, 250), false, game)
     end)
 end
 
