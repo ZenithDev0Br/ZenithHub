@@ -5,14 +5,16 @@ Settings.WeaponType = "Melee"
 
 -- COMBAT
 Settings.FastAttack  = true
-Settings.AttackSpeed = 0.1  -- velocidade do fast attack (segundos entre cada hit)
-Settings.BringMobs   = true
+Settings.AttackSpeed = 0.1
 
--- HAKI / HABILIDADES
-Settings.AutoBuso   = true  -- Buso (Armamento) sempre ativo
+-- HITBOX (sempre ativo, ajuste o tamanho aqui)
+Settings.HitboxSize = 15
+
+-- HAKI
+Settings.AutoBuso   = true
+Settings.AutoObs    = false
 Settings.AutoV3V4   = false
 Settings.AutoAwaken = false
-Settings.AutoObs    = false -- Observação
 
 -- MOVIMENTO
 Settings.TweenSpeed     = 300
