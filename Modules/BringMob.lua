@@ -7,28 +7,34 @@ local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
 local TweenInfoBring = TweenInfo.new(
-    0.45, -- Velocidade de atração idêntica à Zyn Hub
+    0.45,
     Enum.EasingStyle.Linear,
     Enum.EasingDirection.Out
 )
 
--- Filtro para ignorar bosses e monstros de Raid bugados
 local function IsRaidOrBossMob(mob)
     local name = mob.Name:lower()
-    if name:find("raid") or name:find("microchip") or name:find("island") then  
-        return true  
-    end  
-    if mob:GetAttribute("IsRaid") or mob:GetAttribute("RaidMob") or mob:GetAttribute("IsBoss") then  
-        return true  
-    end  
-    local hum = mob:FindFirstChild("Humanoid")  
-    if hum and hum.WalkSpeed == 0 then  
-        return true  
-    end  
+    if name:find("raid") or name:find("microchip") or name:find("island") then return true end
+    if mob:GetAttribute("IsRaid") or mob:GetAttribute("RaidMob") or mob:GetAttribute("IsBoss") then return true end
+    local hum = mob:FindFirstChild("Humanoid")
+    if hum and hum.WalkSpeed == 0 then return true end
     return false
 end
 
 function BringMob:Cluster(enemyName)
+    -- DEBUG TEMPORÁRIO
+    local enemiesFolder = Workspace:FindFirstChild("Enemies")
+    print("Enemies folder:", enemiesFolder)
+    if enemiesFolder then
+        print("Total mobs:", #enemiesFolder:GetChildren())
+        for _, v in ipairs(enemiesFolder:GetChildren()) do
+            if v.Name == enemyName then
+                print("Mob encontrado:", v.Name, v:FindFirstChild("HumanoidRootPart"))
+            end
+        end
+    end
+    -- FIM DEBUG
+
     local Settings = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
     local bringRange = Settings and Settings.BringRange or 235
     local maxBring = Settings and Settings.MaxBringMobs or 3
@@ -37,12 +43,10 @@ function BringMob:Cluster(enemyName)
     local hrp = character and character:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
 
-    -- Força a rede do Roblox a aceitar controle da física dos monstros ao redor
-    pcall(function()  
-        sethiddenproperty(LocalPlayer, "SimulationRadius", math.huge)  
-    end)  
+    pcall(function()
+        sethiddenproperty(LocalPlayer, "SimulationRadius", math.huge)
+    end)
 
-    -- O ponto central é onde os monstros vão se agrupar (posição fixa gravada do primeiro mob)
     local targetMob = Workspace.Enemies:FindFirstChild(enemyName)
     local targetPos = nil
 
