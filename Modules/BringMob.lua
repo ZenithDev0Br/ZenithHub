@@ -1,6 +1,5 @@
 local BringMob = {}
 
-local Teams = game:GetService("Teams")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
@@ -22,19 +21,6 @@ local function IsRaidOrBossMob(mob)
 end
 
 function BringMob:Cluster(enemyName)
-    -- DEBUG TEMPORÁRIO
-    local enemiesFolder = Workspace:FindFirstChild("Enemies")
-    print("Enemies folder:", enemiesFolder)
-    if enemiesFolder then
-        print("Total mobs:", #enemiesFolder:GetChildren())
-        for _, v in ipairs(enemiesFolder:GetChildren()) do
-            if v.Name == enemyName then
-                print("Mob encontrado:", v.Name, v:FindFirstChild("HumanoidRootPart"))
-            end
-        end
-    end
-    -- FIM DEBUG
-
     local Settings = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
     local bringRange = Settings and Settings.BringRange or 235
     local maxBring = Settings and Settings.MaxBringMobs or 3
@@ -68,7 +54,8 @@ function BringMob:Cluster(enemyName)
             local m_hrp = mob.HumanoidRootPart
 
             if hum.Health > 0 and not IsRaidOrBossMob(mob) then
-                local distance = (m_hrp.Position - hrp.Position).Magnitude
+                -- CORREÇÃO: distância calculada a partir do targetPos, não do personagem
+                local distance = (m_hrp.Position - targetPos).Magnitude
 
                 if distance <= bringRange and not m_hrp:GetAttribute("Tweening") then
                     count = count + 1
