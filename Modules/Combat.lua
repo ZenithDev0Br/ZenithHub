@@ -1,32 +1,83 @@
-local Settings = {}
+local Combat = {}
 
--- ARMA
-Settings.WeaponType = "Melee"
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CollectionService = game:GetService("CollectionService")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
 
--- COMBAT
-Settings.FastAttack  = true
-Settings.AttackSpeed = 0.1  -- velocidade do fast attack (segundos entre cada hit)
-Settings.BringMobs   = true
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+local CommE = Remotes:WaitForChild("CommE")
+local CommF = Remotes:WaitForChild("CommF_")
 
--- HAKI / HABILIDADES
-Settings.AutoBuso   = true  -- Buso (Armamento) sempre ativo
-Settings.AutoV3V4   = false
-Settings.AutoAwaken = false
-Settings.AutoObs    = false -- Observação
+-- ============================================================
+-- BUSO AUTOMÁTICO
+-- ============================================================
+local function HasBuso()
+    local char = LocalPlayer.Character
+    return char and CollectionService:HasTag(char, "Buso")
+end
 
--- MOVIMENTO
-Settings.TweenSpeed     = 300
-Settings.AttackHeight   = 22
-Settings.AttackDistance = 0
+local busoLoop = nil
+function Combat:StartBuso()
+    if busoLoop then return end
+    busoLoop = task.spawn(function()
+        while true do
+            task.wait(0.2)
+            local Settings = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
+            if not (Settings and Settings.AutoBuso) then continue end
+            if not HasBuso() then
+                pcall(function()
+                    CommE:FireServer("Buso", true)
+                end)
+            end
+        end
+    end)
+end
 
--- FARMS
-Settings.AutoFarmLevel = false
-Settings.AutoFarmBones = false
-Settings.AutoBoss      = false
+-- ============================================================
+-- MAGNUS HITBOX (sempre ativo)
+-- ============================================================
+local hitboxLoop = nil
 
--- Vínculo global
-getgenv().ZenithHub = getgenv().ZenithHub or {}
-getgenv().ZenithHub.Modules = getgenv().ZenithHub.Modules or {}
-getgenv().ZenithHub.Modules.FarmSettings = Settings
+function Combat:StartHitbox()
+    if hitboxLoop then return end
+    hitboxLoop = RunService.Stepped:Connect(function()
+        local Settings = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
+        local hitboxSize = Settings and Settings.HitboxSize or 15
 
-return Settings
+        local char = LocalPlayer.Character
+        if not char then return end
+
+        for _, part in ipairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then
+                pcall(function()
+                    sethiddenproperty(part, "HitboxSize", Vector3.new(hitboxSize, hitboxSize, hitboxSize))
+                end)
+            end
+        end
+    end)
+end
+
+-- ============================================================
+-- FAST ATTACK
+-- ============================================================
+function Combat:Attack()
+    local character = LocalPlayer.Character
+    if not character or character.Humanoid.Health <= 0 then return end
+
+    local Settings = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
+    local attackSpeed = Settings and Settings.AttackSpeed or 0.1
+
+    pcall(function()
+        CommF:InvokeServer("Attack", 0)
+    end)
+
+    task.wait(attackSpeed)
+end
+
+-- Inicia ao carregar o módulo
+Combat:StartBuso()
+Combat:StartHitbox()
+
+return Combat
