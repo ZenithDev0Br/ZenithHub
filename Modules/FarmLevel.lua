@@ -150,7 +150,7 @@ function FarmLevel:Start()
 
                     local distanceToNPC = (hrp.Position - QuestData.QuestPosition).Magnitude
 
-                    if distanceToNPC < 15 then
+                    if distanceToNPC < 30 then
                         setCharacterAnchor(hrp, true)
                         AutoQuest:StartQuest()
                         task.wait(0.5) -- aguarda GUI atualizar antes do próximo HasQuest()
