@@ -8,22 +8,64 @@ local LocalPlayer = Players.LocalPlayer
 local Net = ReplicatedStorage:WaitForChild("Remotes")
 local CommF = Net:WaitForChild("CommF_")
 
-local Modules = ReplicatedStorage:WaitForChild("Modules")
-local ModNet = Modules:WaitForChild("Net")
-local RegisterAttack = ModNet:WaitForChild("RE/RegisterAttack")
-local RegisterHit    = ModNet:WaitForChild("RE/RegisterHit")
-
-local busoLoop   = nil
+local busoLoop = nil
 local hitboxLoop = nil
+local attackLoop = nil
 
--- ============================================================
--- UTILS
--- ============================================================
 local function IsAlive(char)
-    return char
-        and char:FindFirstChild("Humanoid")
-        and char.Humanoid.Health > 0
+    return char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0
 end
+
+local function GetNearestEnemy()
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return nil end
+
+    local nearest, nearestDist = nil, math.huge
+    local folder = workspace:FindFirstChild("Enemies")
+    if not folder then return nil end
+
+    for _, mob in ipairs(folder:GetChildren()) do
+        local hum = mob:FindFirstChild("Humanoid")
+        local hrpMob = mob:FindFirstChild("HumanoidRootPart")
+        if hum and hum.Health > 0 and hrpMob then
+            local dist = (hrp.Position - hrpMob.Position).Magnitude
+            if dist < nearest and dist < 100 then
+                nearest = mob
+                nearestDist = dist
+            end
+        end
+    end
+    return nearest
+end
+
+-- Hook que redireciona mira para o inimigo mais próximo
+local mt = getrawmetatable(game)
+local oldNamecall = mt.__namecall
+setreadonly(mt, false)
+mt.__namecall = newcclosure(function(...)
+    local method = getnamecallmethod()
+    local args = {...}
+    if tostring(method) == "FireServer" then
+        if tostring(args[1]) == "RemoteEvent" then
+            if tostring(args[2]) ~= "true" and tostring(args[2]) ~= "false" then
+                local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
+                if S and S.FastAttack then
+                    local enemy = GetNearestEnemy()
+                    if enemy then
+                        local hrpMob = enemy:FindFirstChild("HumanoidRootPart")
+                        if hrpMob then
+                            args[2] = hrpMob.Position
+                            return oldNamecall(unpack(args))
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return oldNamecall(...)
+end)
+setreadonly(mt, true)
 
 -- ============================================================
 -- BUSO AUTOMÁTICO
@@ -38,16 +80,14 @@ function Combat:StartBuso()
             local char = LocalPlayer.Character
             if not IsAlive(char) then continue end
             if not char:FindFirstChild("HasBuso") then
-                pcall(function()
-                    CommF:InvokeServer("Buso")
-                end)
+                pcall(function() CommF:InvokeServer("Buso") end)
             end
         end
     end)
 end
 
 -- ============================================================
--- MAGNUS HITBOX (sempre ativo)
+-- HITBOX
 -- ============================================================
 function Combat:StartHitbox()
     if hitboxLoop then return end
@@ -67,128 +107,31 @@ function Combat:StartHitbox()
 end
 
 -- ============================================================
--- FAST ATTACK (RE/RegisterAttack + RE/RegisterHit)
+-- AUTOCLICK (spamma ataque automaticamente)
 -- ============================================================
 function Combat:StartAttackLoop()
-    -- Loop 1: RegisterHit nos inimigos próximos
-    task.spawn(function()
-        while true do
-            task.wait(0.15)
-            local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
-            if not (S and S.FastAttack) then continue end
-
-            local char = LocalPlayer.Character
-            if not IsAlive(char) then continue end
-
-            local tool = char:FindFirstChildOfClass("Tool")
-            if not tool or tool.ToolTip == "Gun" then continue end
-
-            local hrp = char:FindFirstChild("HumanoidRootPart")
-            if not hrp then continue end
-
-            local enemies = {}
-            local basePart = nil
-
-            for _, folder in ipairs({
-                workspace:FindFirstChild("Enemies"),
-                workspace:FindFirstChild("Characters")
-            }) do
-                if folder then
-                    for _, mob in ipairs(folder:GetChildren()) do
-                        local head = mob:FindFirstChild("Head")
-                        if head and IsAlive(mob) and mob ~= char then
-                            local dist = (hrp.Position - head.Position).Magnitude
-                            if dist < 100 then
-                                table.insert(enemies, { mob, head })
-                                basePart = head
-                            end
-                        end
-                    end
-                end
-            end
-
-            if #enemies > 0 and basePart then
-                pcall(function()
-                    RegisterAttack:FireServer(0)
-                    RegisterHit:FireServer(basePart, enemies)
-                end)
-            end
-        end
-    end)
-
-    -- Loop 2: segundo disparo (cobre lag entre ticks)
-    task.spawn(function()
-        while true do
-            task.wait(0.15)
-            local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
-            if not (S and S.FastAttack) then continue end
-
-            local char = LocalPlayer.Character
-            if not IsAlive(char) then continue end
-
-            local tool = char:FindFirstChildOfClass("Tool")
-            if not tool or tool.ToolTip == "Gun" then continue end
-
-            local hrp = char:FindFirstChild("HumanoidRootPart")
-            if not hrp then continue end
-
-            local enemies = {}
-            local basePart = nil
-
-            for _, folder in ipairs({
-                workspace:FindFirstChild("Enemies"),
-                workspace:FindFirstChild("Characters")
-            }) do
-                if folder then
-                    for _, mob in ipairs(folder:GetChildren()) do
-                        local head = mob:FindFirstChild("Head")
-                        if head and IsAlive(mob) and mob ~= char then
-                            local dist = (hrp.Position - head.Position).Magnitude
-                            if dist < 100 then
-                                table.insert(enemies, { mob, head })
-                                basePart = head
-                            end
-                        end
-                    end
-                end
-            end
-
-            if #enemies > 0 and basePart then
-                pcall(function()
-                    RegisterAttack:FireServer(0)
-                    RegisterHit:FireServer(basePart, enemies)
-                end)
-            end
-        end
-    end)
-
-    -- Loop 3: AutoClick via VirtualUser (necessário para o servidor aceitar o hit)
-    task.spawn(function()
-        local VirtualUser = game:GetService("VirtualUser")
+    if attackLoop then return end
+    local VirtualUser = game:GetService("VirtualUser")
+    attackLoop = task.spawn(function()
         while true do
             task.wait(0.1)
             local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
             if not (S and S.FastAttack) then continue end
-
             local char = LocalPlayer.Character
             if not IsAlive(char) then continue end
-
-            if char:FindFirstChildOfClass("Tool") then
-                pcall(function()
-                    VirtualUser:CaptureController()
-                    VirtualUser:Button1Down(Vector2.new(1280, 672))
-                end)
-            end
+            if not char:FindFirstChildOfClass("Tool") then continue end
+            pcall(function()
+                VirtualUser:CaptureController()
+                VirtualUser:Button1Down(Vector2.new(1280, 672))
+                task.wait(0.05)
+                VirtualUser:Button1Up(Vector2.new(1280, 672))
+            end)
         end
     end)
 end
 
--- Método chamado pelo FarmLevel (mantido por compatibilidade)
-function Combat:Attack()
-    -- Os loops cuidam de tudo automaticamente
-end
+function Combat:Attack() end
 
--- Inicia ao carregar
 Combat:StartBuso()
 Combat:StartHitbox()
 Combat:StartAttackLoop()
