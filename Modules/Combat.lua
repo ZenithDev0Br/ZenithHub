@@ -3,7 +3,6 @@ local Combat = {}
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local VirtualUser = game:GetService("VirtualUser")
 local LocalPlayer = Players.LocalPlayer
 
 local Net = ReplicatedStorage:WaitForChild("Remotes")
@@ -63,14 +62,48 @@ function Combat:Attack()
     local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
     local attackSpeed = S and S.AttackSpeed or 0.1
 
-    -- Busca RE/RegisterAttack dinamicamente (nome muda por sessão)
+    -- Remote fixo de ataque
     local RegisterAttack = Net:FindFirstChild("RE/RegisterAttack")
 
+    -- Busca o remote de hit numérico (muda por sessão)
+    local HitRemote = nil
+    for _, v in pairs(Net:GetChildren()) do
+        if v:IsA("RemoteEvent") and tonumber(v.Name) then
+            HitRemote = v
+            break
+        end
+    end
+
+    -- Busca o mob mais próximo
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    local targetMob = nil
+    local targetPart = nil
+
+    if hrp then
+        local folder = workspace:FindFirstChild("Enemies")
+        if folder then
+            local closest = math.huge
+            for _, mob in pairs(folder:GetChildren()) do
+                local mobHrp = mob:FindFirstChild("HumanoidRootPart")
+                local hum = mob:FindFirstChild("Humanoid")
+                if mobHrp and hum and hum.Health > 0 then
+                    local dist = (hrp.Position - mobHrp.Position).Magnitude
+                    if dist < closest then
+                        closest = dist
+                        targetMob = mob
+                        targetPart = mob:FindFirstChild("UpperTorso") or mobHrp
+                    end
+                end
+            end
+        end
+    end
+
     pcall(function()
-        VirtualUser:CaptureController()
-        VirtualUser:Button1Down(Vector2.new(1280, 672))
         if RegisterAttack then
             RegisterAttack:FireServer(0.5)
+        end
+        if HitRemote and targetMob and targetPart then
+            HitRemote:FireServer(targetMob, targetPart, {targetMob}, nil, "096172ac")
         end
     end)
 
