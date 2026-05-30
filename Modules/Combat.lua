@@ -3,7 +3,7 @@ local Combat = {}
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
+local VirtualUser = game:GetService("VirtualUser")
 local LocalPlayer = Players.LocalPlayer
 
 local Net = ReplicatedStorage:WaitForChild("Remotes")
@@ -54,17 +54,21 @@ function Combat:StartHitbox()
 end
 
 -- ============================================================
--- FAST ATTACK (toque mobile)
+-- FAST ATTACK (igual ao Zyn Hub original)
 -- ============================================================
 function Combat:Attack()
     local character = LocalPlayer.Character
     if not character or character.Humanoid.Health <= 0 then return end
 
+    local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
+    local attackSpeed = S and S.AttackSpeed or 0.1
+
     pcall(function()
-        VirtualInputManager:SendTouchEvent(0, Vector2.new(450, 250), true, game)
-        task.wait(0.05)
-        VirtualInputManager:SendTouchEvent(0, Vector2.new(450, 250), false, game)
+        VirtualUser:CaptureController()
+        VirtualUser:Button1Down(Vector2.new(1280, 672))
     end)
+
+    task.wait(attackSpeed)
 end
 
 -- Inicia ao carregar
