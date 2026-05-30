@@ -9,7 +9,7 @@ local LocalPlayer = Players.LocalPlayer
 local Net = ReplicatedStorage:WaitForChild("Remotes")
 local CommF = Net:WaitForChild("CommF_")
 
-local busoLoop  = nil
+local busoLoop   = nil
 local hitboxLoop = nil
 
 -- ============================================================
@@ -54,7 +54,7 @@ function Combat:StartHitbox()
 end
 
 -- ============================================================
--- FAST ATTACK (igual ao Zyn Hub original)
+-- FAST ATTACK
 -- ============================================================
 function Combat:Attack()
     local character = LocalPlayer.Character
@@ -63,9 +63,15 @@ function Combat:Attack()
     local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
     local attackSpeed = S and S.AttackSpeed or 0.1
 
+    -- Busca RE/RegisterAttack dinamicamente (nome muda por sessão)
+    local RegisterAttack = Net:FindFirstChild("RE/RegisterAttack")
+
     pcall(function()
         VirtualUser:CaptureController()
         VirtualUser:Button1Down(Vector2.new(1280, 672))
+        if RegisterAttack then
+            RegisterAttack:FireServer(0.5)
+        end
     end)
 
     task.wait(attackSpeed)
