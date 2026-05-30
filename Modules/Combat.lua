@@ -53,65 +53,52 @@ function Combat:StartHitbox()
 end
 
 -- ============================================================
--- FAST ATTACK
+-- HOOK DE ATAQUE (intercepta e expande para mobs próximos)
 -- ============================================================
-function Combat:Attack()
-    local character = LocalPlayer.Character
-    if not character or character.Humanoid.Health <= 0 then return end
-
-    local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
-    local attackSpeed = S and S.AttackSpeed or 0.1
-
-    -- Remote fixo de ataque
-    local RegisterAttack = Net:FindFirstChild("RE/RegisterAttack")
-
-    -- Busca o remote de hit numérico (muda por sessão)
-    local HitRemote = nil
-    for _, v in pairs(Net:GetChildren()) do
-        if v:IsA("RemoteEvent") and tonumber(v.Name) then
-            HitRemote = v
-            break
-        end
-    end
-
-    -- Busca o mob mais próximo
-    local hrp = character:FindFirstChild("HumanoidRootPart")
-    local targetMob = nil
-    local targetPart = nil
-
-    if hrp then
-        local folder = workspace:FindFirstChild("Enemies")
-        if folder then
-            local closest = math.huge
-            for _, mob in pairs(folder:GetChildren()) do
-                local mobHrp = mob:FindFirstChild("HumanoidRootPart")
-                local hum = mob:FindFirstChild("Humanoid")
-                if mobHrp and hum and hum.Health > 0 then
-                    local dist = (hrp.Position - mobHrp.Position).Magnitude
-                    if dist < closest then
-                        closest = dist
-                        targetMob = mob
-                        targetPart = mob:FindFirstChild("UpperTorso") or mobHrp
+function Combat:StartAttackHook()
+    local hooked = false
+    local oldFire
+    oldFire = hookmetamethod(game, "__namecall", function(self, ...)
+        local ok, method = pcall(getnamecallmethod)
+        if ok and method == "FireServer" and tonumber(self.Name) and not hooked then
+            local args = {...}
+            local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
+            if S and S.FastAttack then
+                local char = LocalPlayer.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    hooked = true
+                    local folder = workspace:FindFirstChild("Enemies")
+                    if folder then
+                        for _, mob in pairs(folder:GetChildren()) do
+                            local hum = mob:FindFirstChild("Humanoid")
+                            local mobPart = mob:FindFirstChild("RightHand") or mob:FindFirstChild("UpperTorso") or mob:FindFirstChild("HumanoidRootPart")
+                            if hum and hum.Health > 0 and mobPart then
+                                local dist = (hrp.Position - mobPart.Position).Magnitude
+                                if dist < 100 then
+                                    pcall(function()
+                                        self:FireServer(args[1], args[2], mobPart, {}, nil, args[6])
+                                    end)
+                                end
+                            end
+                        end
                     end
+                    hooked = false
                 end
             end
         end
-    end
-
-    pcall(function()
-        if RegisterAttack then
-            RegisterAttack:FireServer(0.5)
-        end
-        if HitRemote and targetMob and targetPart then
-            HitRemote:FireServer(targetMob, targetPart, {targetMob}, nil, "096172ac")
-        end
+        return oldFire(self, ...)
     end)
+end
 
-    task.wait(attackSpeed)
+-- Método chamado pelo FarmLevel
+function Combat:Attack()
+    -- O hook cuida de tudo automaticamente
 end
 
 -- Inicia ao carregar
 Combat:StartBuso()
 Combat:StartHitbox()
+Combat:StartAttackHook()
 
 return Combat
