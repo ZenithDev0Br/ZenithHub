@@ -3,6 +3,8 @@ local Combat = {}
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local VirtualUser = game:GetService("VirtualUser")
+
 local LocalPlayer = Players.LocalPlayer
 
 local Net = ReplicatedStorage:WaitForChild("Remotes")
@@ -12,6 +14,9 @@ local busoLoop = nil
 local hitboxLoop = nil
 local attackLoop = nil
 
+-- ============================================================
+-- UTILITY FUNCTIONS
+-- ============================================================
 local function IsAlive(char)
     return char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0
 end
@@ -23,14 +28,17 @@ local function GetNearestEnemy()
 
     local nearest, nearestDist = nil, math.huge
     local folder = workspace:FindFirstChild("Enemies")
+    
     if not folder then return nil end
 
     for _, mob in ipairs(folder:GetChildren()) do
         local hum = mob:FindFirstChild("Humanoid")
         local hrpMob = mob:FindFirstChild("HumanoidRootPart")
+        
         if hum and hum.Health > 0 and hrpMob then
             local dist = (hrp.Position - hrpMob.Position).Magnitude
-            if dist < nearest and dist < 100 then
+            -- FIXED: Changed 'nearest' to 'nearestDist'
+            if dist < nearestDist and dist < 100 then
                 nearest = mob
                 nearestDist = dist
             end
@@ -39,13 +47,17 @@ local function GetNearestEnemy()
     return nearest
 end
 
--- Hook que redireciona mira para o inimigo mais próximo
+-- ============================================================
+-- NAMECALL HOOK (AIM REDIRECT)
+-- ============================================================
 local mt = getrawmetatable(game)
 local oldNamecall = mt.__namecall
 setreadonly(mt, false)
+
 mt.__namecall = newcclosure(function(...)
     local method = getnamecallmethod()
     local args = {...}
+    
     if tostring(method) == "FireServer" then
         if tostring(args[1]) == "RemoteEvent" then
             if tostring(args[2]) ~= "true" and tostring(args[2]) ~= "false" then
@@ -68,36 +80,43 @@ end)
 setreadonly(mt, true)
 
 -- ============================================================
--- BUSO AUTOMÁTICO
+-- AUTOMATIC BUSO HAKI
 -- ============================================================
 function Combat:StartBuso()
     if busoLoop then return end
     busoLoop = task.spawn(function()
         while true do
-            task.wait(0.1)
+            task.wait(1) -- OPTIMIZED: Changed from 0.1 to 1s to prevent spamming remotes needlessly
             local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
             if not (S and S.AutoBuso) then continue end
+            
             local char = LocalPlayer.Character
             if not IsAlive(char) then continue end
+            
             if not char:FindFirstChild("HasBuso") then
-                pcall(function() CommF:InvokeServer("Buso") end)
+                pcall(function() 
+                    CommF:InvokeServer("Buso") 
+                end)
             end
         end
     end)
 end
 
 -- ============================================================
--- HITBOX
+-- HITBOX MODIFIER
 -- ============================================================
 function Combat:StartHitbox()
     if hitboxLoop then return end
     hitboxLoop = RunService.Stepped:Connect(function()
         local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
         local hitboxSize = S and S.HitboxSize or 15
+        
         local char = LocalPlayer.Character
         if not char then return end
-        for _, part in ipairs(char:GetDescendants()) do
-            if part:IsA("BasePart") then
+        
+        -- OPTIMIZED: Only targets arms/weapons instead of every single descendant
+        for _, part in ipairs(char:GetChildren()) do
+            if part:IsA("BasePart") and (part.Name:match("Arm") or part.Name:match("Hand")) then
                 pcall(function()
                     sethiddenproperty(part, "HitboxSize", Vector3.new(hitboxSize, hitboxSize, hitboxSize))
                 end)
@@ -107,19 +126,20 @@ function Combat:StartHitbox()
 end
 
 -- ============================================================
--- AUTOCLICK (spamma ataque automaticamente)
+-- AUTOCLICKER (FAST ATTACK)
 -- ============================================================
 function Combat:StartAttackLoop()
     if attackLoop then return end
-    local VirtualUser = game:GetService("VirtualUser")
     attackLoop = task.spawn(function()
         while true do
             task.wait(0.1)
             local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
             if not (S and S.FastAttack) then continue end
+            
             local char = LocalPlayer.Character
             if not IsAlive(char) then continue end
             if not char:FindFirstChildOfClass("Tool") then continue end
+            
             pcall(function()
                 VirtualUser:CaptureController()
                 VirtualUser:Button1Down(Vector2.new(1280, 672))
@@ -130,8 +150,13 @@ function Combat:StartAttackLoop()
     end)
 end
 
-function Combat:Attack() end
+function Combat:Attack() 
+    -- Placeholder for manual attack logic if needed
+end
 
+-- ============================================================
+-- INITIALIZE
+-- ============================================================
 Combat:StartBuso()
 Combat:StartHitbox()
 Combat:StartAttackLoop()
