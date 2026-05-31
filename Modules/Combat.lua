@@ -1,4 +1,4 @@
-local Combat = {}
+Local Combat = {}
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -83,7 +83,7 @@ function Combat:StartHitbox()
 end
 
 -- ============================================================
--- FAST ATTACK (igual ao Zyn Hub — RegisterAttack + RegisterHit)
+-- FAST ATTACK (Com Debug Prints)
 -- ============================================================
 function Combat:StartAttackLoop()
     -- Configura _G.Settings igual ao Zyn Hub original
@@ -94,7 +94,7 @@ function Combat:StartAttackLoop()
 
     local delayTime = 0.15
 
-    -- Loop 1: RegisterAttack + RegisterHit
+    -- Loop 1: RegisterAttack + RegisterHit (MODIFICADO COM PRINT)
     _G.FastAttackLoop1 = task.spawn(function()
         while true do
             task.wait(delayTime)
@@ -108,16 +108,25 @@ function Combat:StartAttackLoop()
             if not tool or tool.ToolTip == "Gun" then continue end
 
             local enemies, basePart = GetNearestEnemies(100)
+
+            print("[LOOP 1] Enemies Found:", #enemies)
+            print("[LOOP 1] BasePart:", basePart)
+
             if #enemies > 0 and basePart then
+                print("[LOOP 1] ATTACKING")
+
                 pcall(function()
+                    print("[LOOP 1] RegisterAttack")
                     RegisterAttack:FireServer(0)
+
+                    print("[LOOP 1] RegisterHit")
                     RegisterHit:FireServer(basePart, enemies)
                 end)
             end
         end
     end)
 
-    -- Loop 2: segundo loop igual ao Zyn Hub
+    -- Loop 2: segundo loop igual ao Zyn Hub (MODIFICADO COM PRINT)
     _G.FastAttackLoop2 = task.spawn(function()
         while true do
             task.wait(delayTime)
@@ -131,9 +140,18 @@ function Combat:StartAttackLoop()
             if not tool or tool.ToolTip == "Gun" then continue end
 
             local enemies, basePart = GetNearestEnemies(100)
+
+            print("[LOOP 2] Enemies Found:", #enemies)
+            print("[LOOP 2] BasePart:", basePart)
+
             if #enemies > 0 and basePart then
+                print("[LOOP 2] ATTACKING")
+
                 pcall(function()
+                    print("[LOOP 2] RegisterAttack")
                     RegisterAttack:FireServer(0)
+
+                    print("[LOOP 2] RegisterHit")
                     RegisterHit:FireServer(basePart, enemies)
                 end)
             end
