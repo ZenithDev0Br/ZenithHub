@@ -85,7 +85,8 @@ local ModuleFiles = {
     -- MOB SYSTEM
     "Modules/BringMob.lua",
     "Modules/MobScanner.lua",
-    "Modules/Target.lua"
+    "Modules/Target.lua",
+    "Modules/Esp.lua"
 }
 
 for _, File in ipairs(ModuleFiles) do
