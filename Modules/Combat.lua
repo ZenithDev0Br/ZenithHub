@@ -86,7 +86,6 @@ end
 -- FAST ATTACK (Com Debug Prints)
 -- ============================================================
 function Combat:StartAttackLoop()
-    -- Configura _G.Settings igual ao Zyn Hub original
     _G.Settings = _G.Settings or {}
     _G.Settings.AutoClick = true
     _G.Settings.FastAttack = true
@@ -94,37 +93,50 @@ function Combat:StartAttackLoop()
 
     local delayTime = 0.15
 
-    -- Loop 1: RegisterAttack + RegisterHit (MODIFICADO COM PRINT)
     _G.FastAttackLoop1 = task.spawn(function()
         while true do
             task.wait(delayTime)
+            
+            -- TESTE 1: As configurações do menu existem?
             local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
-            if not (S and S.FastAttack and S.AutoFarmLevel) then continue end
+            if not S then 
+                print("[DEBUG] FarmSettings nao encontrado na getgenv()")
+                continue 
+            end
+
+            -- TESTE 2: Os botões certos estão ativados no menu?
+            if not (S.FastAttack and S.AutoFarmLevel) then 
+                print("[DEBUG] Botao desligado. FastAttack:", S.FastAttack, "| AutoFarm:", S.AutoFarmLevel)
+                continue 
+            end
 
             local char = LocalPlayer.Character
             if not IsAlive(char) then continue end
 
+            -- TESTE 3: Você está com a ferramenta certa na mão?
             local tool = char:FindFirstChildOfClass("Tool")
-            if not tool or tool.ToolTip == "Gun" then continue end
+            if not tool then 
+                print("[DEBUG] Nenhuma arma equipada na mao!")
+                continue 
+            elseif tool.ToolTip == "Gun" then 
+                print("[DEBUG] Arma incompativel (Gun):", tool.Name)
+                continue 
+            end
 
+            -- Se passar de tudo isso, ele roda o rastreador de inimigos
             local enemies, basePart = GetNearestEnemies(100)
-
-            print("[LOOP 1] Enemies Found:", #enemies)
-            print("[LOOP 1] BasePart:", basePart)
+            print("[LOOP 1] Inimigos perto:", #enemies, "| BasePart:", basePart)
 
             if #enemies > 0 and basePart then
-                print("[LOOP 1] ATTACKING")
-
                 pcall(function()
-                    print("[LOOP 1] RegisterAttack")
                     RegisterAttack:FireServer(0)
-
-                    print("[LOOP 1] RegisterHit")
                     RegisterHit:FireServer(basePart, enemies)
                 end)
             end
         end
     end)
+end
+
 
     -- Loop 2: segundo loop igual ao Zyn Hub (MODIFICADO COM PRINT)
     _G.FastAttackLoop2 = task.spawn(function()
