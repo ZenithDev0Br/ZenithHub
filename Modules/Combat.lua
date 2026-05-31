@@ -42,7 +42,7 @@ local function GetNearestEnemy()
 end
 
 -- ============================================================
--- NAMECALL HOOK
+-- NAMECALL HOOK — mantém args originais, só troca mob alvo
 -- ============================================================
 local mt = getrawmetatable(game)
 local oldNamecall = mt.__namecall
@@ -50,23 +50,34 @@ setreadonly(mt, false)
 mt.__namecall = newcclosure(function(...)
     local method = getnamecallmethod()
     local args = {...}
+
     if tostring(method) == "FireServer" then
-        if tostring(args[1]) == "RemoteEvent" then
-            if tostring(args[2]) ~= "true" and tostring(args[2]) ~= "false" then
-                local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
-                if S and S.FastAttack and S.AutoFarmLevel then -- CORREÇÃO: só ativa se AutoFarmLevel estiver ligado
-                    local enemy = GetNearestEnemy()
-                    if enemy then
-                        local hrpMob = enemy:FindFirstChild("HumanoidRootPart")
-                        if hrpMob then
-                            args[2] = hrpMob.Position
-                            return oldNamecall(unpack(args))
-                        end
+        local remote = args[1]
+        -- Detecta o remote de hit pelo padrão: arg2=string, arg3=number, arg4=Instance
+        if typeof(remote) == "Instance" and remote:IsA("RemoteEvent")
+        and typeof(args[2]) == "string"
+        and typeof(args[3]) == "number"
+        and typeof(args[4]) == "Instance" then
+
+            local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
+            if S and S.FastAttack and S.AutoFarmLevel then
+                local enemy = GetNearestEnemy()
+                if enemy then
+                    -- Pega a melhor parte do corpo disponível
+                    local targetPart = enemy:FindFirstChild("RightHand")
+                        or enemy:FindFirstChild("UpperTorso")
+                        or enemy:FindFirstChild("HumanoidRootPart")
+
+                    if targetPart then
+                        -- Mantém arg2 e arg7 originais, só troca arg3 e arg4
+                        args[4] = targetPart
+                        return oldNamecall(unpack(args))
                     end
                 end
             end
         end
     end
+
     return oldNamecall(...)
 end)
 setreadonly(mt, true)
@@ -119,7 +130,6 @@ function Combat:StartAttackLoop()
         while true do
             local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
 
-            -- CORREÇÃO: só ataca se AutoFarmLevel E FastAttack estiverem ligados
             if not (S and S.FastAttack and S.AutoFarmLevel) then
                 task.wait(0.1)
                 continue
@@ -133,11 +143,10 @@ function Combat:StartAttackLoop()
 
             pcall(function()
                 VirtualInputManager:SendMouseButtonEvent(640, 360, 0, true, game, 1)
-                task.wait(0.02) -- CORREÇÃO: de 0.05 para 0.02 (mais rápido)
+                task.wait(0.02)
                 VirtualInputManager:SendMouseButtonEvent(640, 360, 0, false, game, 1)
             end)
 
-            -- CORREÇÃO: delay entre ataques reduzido para 0.05
             task.wait(0.05)
         end
     end)
