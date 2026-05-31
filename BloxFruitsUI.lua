@@ -1,8 +1,8 @@
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/tlredz/Library/refs/heads/main/redz-V5-remake/main.luau"))()
 
 local Window = Library:MakeWindow({
-    Title = "Zenith Hub",
-    SubTitle = "Complete Panel",
+    Title = "Zenith Hub: Blox Fruits",
+    SubTitle = "by ntzinho",
     ScriptFolder = "ZenithHub"
 })
 
@@ -215,6 +215,32 @@ FarmTab:AddToggle({
     Callback = function(v)
         local s = S()
         if s then s.AutoBoss = v end
+    end
+})
+
+-- ============================================================================
+-- SESSÃO ADICIONADA: Farm Chest (FARM DE BAÚS)
+-- ============================================================================
+FarmTab:AddSection("Farm Chest")
+
+FarmTab:AddToggle({
+    Name = "Auto Farm Chest (Baús + Server Hop)",
+    Default = false,
+    Callback = function(v)
+        local s = S()
+        if s then s.AutoFarmChest = v end
+
+        local Modules = M()
+        local FarmChest = Modules and Modules.FarmChest
+        if FarmChest then
+            if v then 
+                FarmChest:Start() 
+            else 
+                FarmChest:Stop() 
+            end
+        else
+            warn("[ZenithHub] Módulo FarmChest não encontrado.")
+        end
     end
 })
 
