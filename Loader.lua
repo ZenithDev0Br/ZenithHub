@@ -76,6 +76,7 @@ local ModuleFiles = {
 
     -- MOVEMENT
     "Modules/Tween.lua",
+    "Modules/AttackController.lua",
 
     -- COMBAT
     "Modules/Combat.lua",
