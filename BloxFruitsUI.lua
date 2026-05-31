@@ -275,7 +275,7 @@ FarmTab:AddToggle({
 })
 
 -- ============================================================================
--- ABA 3: VISUAL (NOVA)
+-- ABA 3: VISUAL (COMPLETA)
 -- ============================================================================
 local VisualTab = Window:MakeTab({ Title = "Visual", Icon = "Eye" })
 VisualTab:AddSection("ESP Render")
@@ -286,6 +286,42 @@ VisualTab:AddToggle({
     Callback = function(v)
         local s = S()
         if s then s.EspChest = v end
+    end
+})
+
+VisualTab:AddToggle({
+    Name = "ESP Fruits (Ver Frutas no Chão)",
+    Default = false,
+    Callback = function(v)
+        local s = S()
+        if s then s.EspFruits = v end
+    end
+})
+
+VisualTab:AddToggle({
+    Name = "ESP Flowers (Flores V2)",
+    Default = false,
+    Callback = function(v)
+        local s = S()
+        if s then s.EspFlower = v end -- Lê o novo sistema de flores
+    end
+})
+
+VisualTab:AddToggle({
+    Name = "ESP Islands (Mirage Island / Eventos)",
+    Default = false,
+    Callback = function(v)
+        local s = S()
+        if s then s.EspIslands = v end -- Lê o novo sistema de ilhas
+    end
+})
+
+VisualTab:AddToggle({
+    Name = "ESP Gear (Engrenagem Mirage V4)",
+    Default = false,
+    Callback = function(v)
+        local s = S()
+        if s then s.EspGear = v end -- Lê o novo sistema de engrenagem
     end
 })
 
