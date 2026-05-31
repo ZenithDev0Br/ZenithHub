@@ -15,177 +15,149 @@ local busoLoop   = nil
 local hitboxLoop = nil
 
 local function IsAlive(char)
-    return char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0
+return char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0
 end
 
 local function GetNearestEnemies(distance)
-    local OthersEnemies = {}
-    local BasePart = nil
-    local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return OthersEnemies, nil end
+local OthersEnemies = {}
+local BasePart = nil
+local char = LocalPlayer.Character
+if not char or not char:FindFirstChild("HumanoidRootPart") then return OthersEnemies, nil end
 
-    local function ProcessFolder(folder)
-        if not folder then return end
-        for _, enemy in ipairs(folder:GetChildren()) do
-            local head = enemy:FindFirstChild("Head")
-            if head and IsAlive(enemy) and enemy ~= char then
-                local dist = (char.HumanoidRootPart.Position - head.Position).Magnitude
-                if dist < distance then
-                    table.insert(OthersEnemies, {enemy, head})
-                    BasePart = head
-                end
-            end
-        end
-    end
+local function ProcessFolder(folder)  
+    if not folder then return end  
+    for _, enemy in ipairs(folder:GetChildren()) do  
+        local head = enemy:FindFirstChild("Head")  
+        if head and IsAlive(enemy) and enemy ~= char then  
+            local dist = (char.HumanoidRootPart.Position - head.Position).Magnitude  
+            if dist < distance then  
+                table.insert(OthersEnemies, {enemy, head})  
+                BasePart = head  
+            end  
+        end  
+    end  
+end  
 
-    ProcessFolder(workspace:FindFirstChild("Enemies"))
-    ProcessFolder(workspace:FindFirstChild("Characters"))
-    return OthersEnemies, BasePart
+ProcessFolder(workspace:FindFirstChild("Enemies"))  
+ProcessFolder(workspace:FindFirstChild("Characters"))  
+return OthersEnemies, BasePart
+
 end
 
 -- ============================================================
 -- BUSO AUTOMÁTICO
 -- ============================================================
 function Combat:StartBuso()
-    if busoLoop then return end
-    busoLoop = task.spawn(function()
-        while true do
-            task.wait(1)
-            local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
-            if not (S and S.AutoBuso) then continue end
-            local char = LocalPlayer.Character
-            if not IsAlive(char) then continue end
-            if not char:FindFirstChild("HasBuso") then
-                pcall(function() CommF:InvokeServer("Buso") end)
-            end
-        end
-    end)
+if busoLoop then return end
+busoLoop = task.spawn(function()
+while true do
+task.wait(1)
+local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
+if not (S and S.AutoBuso) then continue end
+local char = LocalPlayer.Character
+if not IsAlive(char) then continue end
+if not char:FindFirstChild("HasBuso") then
+pcall(function() CommF:InvokeServer("Buso") end)
+end
+end
+end)
 end
 
 -- ============================================================
 -- HITBOX
 -- ============================================================
 function Combat:StartHitbox()
-    if hitboxLoop then return end
-    hitboxLoop = RunService.Stepped:Connect(function()
-        local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
-        local hitboxSize = S and S.HitboxSize or 15
-        local char = LocalPlayer.Character
-        if not char then return end
-        for _, part in ipairs(char:GetDescendants()) do
-            if part:IsA("BasePart") then
-                pcall(function()
-                    sethiddenproperty(part, "HitboxSize", Vector3.new(hitboxSize, hitboxSize, hitboxSize))
-                end)
-            end
-        end
-    end)
+if hitboxLoop then return end
+hitboxLoop = RunService.Stepped:Connect(function()
+local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
+local hitboxSize = S and S.HitboxSize or 15
+local char = LocalPlayer.Character
+if not char then return end
+for _, part in ipairs(char:GetDescendants()) do
+if part:IsA("BasePart") then
+pcall(function()
+sethiddenproperty(part, "HitboxSize", Vector3.new(hitboxSize, hitboxSize, hitboxSize))
+end)
+end
+end
+end)
 end
 
 -- ============================================================
--- FAST ATTACK (Com Debug Prints)
+-- FAST ATTACK (igual ao Zyn Hub — RegisterAttack + RegisterHit)
 -- ============================================================
 function Combat:StartAttackLoop()
-    _G.Settings = _G.Settings or {}
-    _G.Settings.AutoClick = true
-    _G.Settings.FastAttack = true
-    _G.Settings.FastAttackMode = "Fast Attack"
+-- Configura _G.Settings igual ao Zyn Hub original
+_G.Settings = _G.Settings or {}
+_G.Settings.AutoClick = true
+_G.Settings.FastAttack = true
+_G.Settings.FastAttackMode = "Fast Attack"
 
-    local delayTime = 0.15
+local delayTime = 0.15  
 
-    _G.FastAttackLoop1 = task.spawn(function()
-        while true do
-            task.wait(delayTime)
-            
-            -- TESTE 1: As configurações do menu existem?
-            local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
-            if not S then 
-                print("[DEBUG] FarmSettings nao encontrado na getgenv()")
-                continue 
-            end
+-- Loop 1: RegisterAttack + RegisterHit  
+_G.FastAttackLoop1 = task.spawn(function()  
+    while true do  
+        task.wait(delayTime)  
+        local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings  
+        if not (S and S.FastAttack and S.AutoFarmLevel) then continue end  
 
-            -- TESTE 2: Os botões certos estão ativados no menu?
-            if not (S.FastAttack and S.AutoFarmLevel) then 
-                print("[DEBUG] Botao desligado. FastAttack:", S.FastAttack, "| AutoFarm:", S.AutoFarmLevel)
-                continue 
-            end
+        local char = LocalPlayer.Character  
+        if not IsAlive(char) then continue end  
 
-            local char = LocalPlayer.Character
-            if not IsAlive(char) then continue end
+        local tool = char:FindFirstChildOfClass("Tool")  
+        if not tool or tool.ToolTip == "Gun" then continue end  
 
-            -- TESTE 3: Você está com a ferramenta certa na mão?
-            local tool = char:FindFirstChildOfClass("Tool")
-            if not tool then 
-                print("[DEBUG] Nenhuma arma equipada na mao!")
-                continue 
-            elseif tool.ToolTip == "Gun" then 
-                print("[DEBUG] Arma incompativel (Gun):", tool.Name)
-                continue 
-            end
+        local enemies, basePart = GetNearestEnemies(100)  
+        if #enemies > 0 and basePart then  
+            pcall(function()  
+                RegisterAttack:FireServer(0)  
+                RegisterHit:FireServer(basePart, enemies)  
+            end)  
+        end  
+    end  
+end)  
 
-            -- Se passar de tudo isso, ele roda o rastreador de inimigos
-            local enemies, basePart = GetNearestEnemies(100)
-            print("[LOOP 1] Inimigos perto:", #enemies, "| BasePart:", basePart)
+-- Loop 2: segundo loop igual ao Zyn Hub  
+_G.FastAttackLoop2 = task.spawn(function()  
+    while true do  
+        task.wait(delayTime)  
+        local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings  
+        if not (S and S.FastAttack and S.AutoFarmLevel) then continue end  
 
-            if #enemies > 0 and basePart then
-                pcall(function()
-                    RegisterAttack:FireServer(0)
-                    RegisterHit:FireServer(basePart, enemies)
-                end)
-            end
-        end
-    end)
-end
+        local char = LocalPlayer.Character  
+        if not IsAlive(char) then continue end  
 
+        local tool = char:FindFirstChildOfClass("Tool")  
+        if not tool or tool.ToolTip == "Gun" then continue end  
 
-    -- Loop 2: segundo loop igual ao Zyn Hub (MODIFICADO COM PRINT)
-    _G.FastAttackLoop2 = task.spawn(function()
-        while true do
-            task.wait(delayTime)
-            local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
-            if not (S and S.FastAttack and S.AutoFarmLevel) then continue end
+        local enemies, basePart = GetNearestEnemies(100)  
+        if #enemies > 0 and basePart then  
+            pcall(function()  
+                RegisterAttack:FireServer(0)  
+                RegisterHit:FireServer(basePart, enemies)  
+            end)  
+        end  
+    end  
+end)  
 
-            local char = LocalPlayer.Character
-            if not IsAlive(char) then continue end
+-- Loop 3: AutoClick igual ao Zyn Hub  
+_G.AutoClickLoop = task.spawn(function()  
+    while true do  
+        task.wait(0.1)  
+        local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings  
+        if not (S and S.AutoFarmLevel) then continue end  
 
-            local tool = char:FindFirstChildOfClass("Tool")
-            if not tool or tool.ToolTip == "Gun" then continue end
+        local char = LocalPlayer.Character  
+        if char and IsAlive(char) and char:FindFirstChildOfClass("Tool") then  
+            pcall(function()  
+                VirtualUser:CaptureController()  
+                VirtualUser:Button1Down(Vector2.new(1280, 672))  
+            end)  
+        end  
+    end  
+end)
 
-            local enemies, basePart = GetNearestEnemies(100)
-
-            print("[LOOP 2] Enemies Found:", #enemies)
-            print("[LOOP 2] BasePart:", basePart)
-
-            if #enemies > 0 and basePart then
-                print("[LOOP 2] ATTACKING")
-
-                pcall(function()
-                    print("[LOOP 2] RegisterAttack")
-                    RegisterAttack:FireServer(0)
-
-                    print("[LOOP 2] RegisterHit")
-                    RegisterHit:FireServer(basePart, enemies)
-                end)
-            end
-        end
-    end)
-
-    -- Loop 3: AutoClick igual ao Zyn Hub
-    _G.AutoClickLoop = task.spawn(function()
-        while true do
-            task.wait(0.1)
-            local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
-            if not (S and S.AutoFarmLevel) then continue end
-
-            local char = LocalPlayer.Character
-            if char and IsAlive(char) and char:FindFirstChildOfClass("Tool") then
-                pcall(function()
-                    VirtualUser:CaptureController()
-                    VirtualUser:Button1Down(Vector2.new(1280, 672))
-                end)
-            end
-        end
-    end)
 end
 
 function Combat:Attack() end
