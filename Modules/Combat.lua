@@ -6,19 +6,19 @@ local RunService = game:GetService("RunService")
 local VirtualUser = game:GetService("VirtualUser")
 local LocalPlayer = Players.LocalPlayer
 
--- ESPERA O JOGO CARREGAR COMPLETAMENTE
+-- ESPERA O JOGO CARREGAR
 repeat task.wait() until game:IsLoaded()
 
--- AGORA sim, pega os remotes com WaitForChild
+-- ACESSA DIRETO: Net é a pasta, os remotes estão DENTRO dela com o nome "RE/..."
 local Modules = ReplicatedStorage:WaitForChild("Modules")
 local Net = Modules:WaitForChild("Net")
-local RE = Net:WaitForChild("RE")
 
-local RegisterAttack = RE:WaitForChild("RegisterAttack")
-local RegisterHit = RE:WaitForChild("RegisterHit")
+-- OS REMOTES JÁ ESTÃO DENTRO DA PASTA NET!
+local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
+local RegisterHit = Net:WaitForChild("RE/RegisterHit")
 
-print("RegisterAttack encontrado:", RegisterAttack ~= nil)
-print("RegisterHit encontrado:", RegisterHit ~= nil)
+print("✅ RegisterAttack encontrado:", RegisterAttack ~= nil)
+print("✅ RegisterHit encontrado:", RegisterHit ~= nil)
 
 local function IsAlive(char)
     return char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0
@@ -51,7 +51,7 @@ local function GetNearestEnemies(distance)
     return OthersEnemies, BasePart
 end
 
--- FAST ATTACK CORRETO (igual ao Zyn Hub)
+-- FAST ATTACK
 function Combat:StartAttackLoop()
     local delayTime = 0.15
     
@@ -60,7 +60,10 @@ function Combat:StartAttackLoop()
         while true do  
             task.wait(delayTime)  
             local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings  
-            if not (S and S.FastAttack and S.AutoFarmLevel) then continue end  
+            if not (S and S.FastAttack and S.AutoFarmLevel) then 
+                task.wait(1)
+                continue 
+            end  
 
             local char = LocalPlayer.Character  
             if not IsAlive(char) then continue end  
@@ -78,12 +81,15 @@ function Combat:StartAttackLoop()
         end  
     end)  
     
-    -- Loop 2 (Zyn Hub roda DOIS loops idênticos)
+    -- Loop 2 (Zyn Hub roda DOIS loops)
     task.spawn(function()  
         while true do  
             task.wait(delayTime)  
             local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings  
-            if not (S and S.FastAttack and S.AutoFarmLevel) then continue end  
+            if not (S and S.FastAttack and S.AutoFarmLevel) then 
+                task.wait(1)
+                continue 
+            end  
 
             local char = LocalPlayer.Character  
             if not IsAlive(char) then continue end  
@@ -101,5 +107,47 @@ function Combat:StartAttackLoop()
         end  
     end)  
 end
+
+function Combat:StartBuso()
+    task.spawn(function()
+        while true do
+            task.wait(1)
+            local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
+            if not (S and S.AutoBuso) then 
+                task.wait(1)
+                continue 
+            end
+            local char = LocalPlayer.Character
+            if not IsAlive(char) then continue end
+            if not char:FindFirstChild("HasBuso") then
+                local CommF = ReplicatedStorage:FindFirstChild("Remotes"):WaitForChild("CommF_")
+                pcall(function() CommF:InvokeServer("Buso") end)
+            end
+        end
+    end)
+end
+
+function Combat:StartHitbox()
+    task.spawn(function()
+        while true do
+            task.wait(0.5)
+            local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
+            local hitboxSize = S and S.HitboxSize or 15
+            local char = LocalPlayer.Character
+            if not char then continue end
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    pcall(function()
+                        sethiddenproperty(part, "HitboxSize", Vector3.new(hitboxSize, hitboxSize, hitboxSize))
+                    end)
+                end
+            end
+        end
+    end)
+end
+
+Combat:StartBuso()
+Combat:StartHitbox()
+Combat:StartAttackLoop()
 
 return Combat
