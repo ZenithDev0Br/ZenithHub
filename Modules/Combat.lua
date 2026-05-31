@@ -42,7 +42,7 @@ local function GetNearestEnemy()
 end
 
 -- ============================================================
--- NAMECALL HOOK — mantém args originais, só troca mob alvo
+-- NAMECALL HOOK — corrigido para Remotes folder
 -- ============================================================
 local mt = getrawmetatable(game)
 local oldNamecall = mt.__namecall
@@ -53,8 +53,9 @@ mt.__namecall = newcclosure(function(...)
 
     if tostring(method) == "FireServer" then
         local remote = args[1]
-        -- Detecta o remote de hit pelo padrão: arg2=string, arg3=number, arg4=Instance
         if typeof(remote) == "Instance" and remote:IsA("RemoteEvent")
+        and remote.Parent == Net -- CORREÇÃO: parent é ReplicatedStorage.Remotes
+        and tonumber(remote.Name) -- CORREÇÃO: nome numérico
         and typeof(args[2]) == "string"
         and typeof(args[3]) == "number"
         and typeof(args[4]) == "Instance" then
@@ -63,13 +64,11 @@ mt.__namecall = newcclosure(function(...)
             if S and S.FastAttack and S.AutoFarmLevel then
                 local enemy = GetNearestEnemy()
                 if enemy then
-                    -- Pega a melhor parte do corpo disponível
-                    local targetPart = enemy:FindFirstChild("RightHand")
+                    local targetPart = enemy:FindFirstChild("LeftUpperArm")
+                        or enemy:FindFirstChild("RightHand")
                         or enemy:FindFirstChild("UpperTorso")
                         or enemy:FindFirstChild("HumanoidRootPart")
-
                     if targetPart then
-                        -- Mantém arg2 e arg7 originais, só troca arg3 e arg4
                         args[4] = targetPart
                         return oldNamecall(unpack(args))
                     end
