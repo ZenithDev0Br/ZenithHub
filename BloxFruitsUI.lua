@@ -223,8 +223,58 @@ FarmTab:AddToggle({
 -- ============================================================================
 FarmTab:AddSection("Farm Chest")
 
+FarmTab:AddSlider({
+    Name = "Amount Chest",
+    Min = 10,
+    Max = 60,
+    Default = 30,
+})
+
+
 FarmTab:AddToggle({
-    Name = "Auto Farm Chest (Baús + Server Hop)",
+    Name = "Auto Farm Chest",
+    Default = false,
+    Callback = function(v)
+        local s = S()
+        if s then s.AutoFarmChest = v end
+
+        local Modules = M()
+        local FarmChest = Modules and Modules.FarmChest
+        if FarmChest then
+            if v then 
+                FarmChest:Start() 
+            else 
+                FarmChest:Stop() 
+            end
+        else
+            warn("[ZenithHub] Módulo FarmChest não encontrado.")
+        end
+    end
+})
+
+FarmTab:AddToggle({
+    Name = "Farm Chest (HOP)",
+    Default = false,
+    Callback = function(v)
+        local s = S()
+        if s then s.AutoFarmChest = v end
+
+        local Modules = M()
+        local FarmChest = Modules and Modules.FarmChest
+        if FarmChest then
+            if v then 
+                FarmChest:Start() 
+            else 
+                FarmChest:Stop() 
+            end
+        else
+            warn("[ZenithHub] Módulo FarmChest não encontrado.")
+        end
+    end
+})
+
+FarmTab:AddToggle({
+    Name = "Stop With Item",
     Default = false,
     Callback = function(v)
         local s = S()
