@@ -1,4 +1,4 @@
-Local Combat = {}
+local Combat = {}
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
