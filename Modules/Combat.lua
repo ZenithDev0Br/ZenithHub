@@ -2,57 +2,46 @@ local Combat = {}
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
+local VirtualUser = game:GetService("VirtualUser")
 local LocalPlayer = Players.LocalPlayer
 
 local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
+local Modules = ReplicatedStorage:WaitForChild("Modules")
+local Net = Modules:WaitForChild("Net")
+local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
+local RegisterHit = Net:WaitForChild("RE/RegisterHit")
 
--- Aguarda os remotes com timeout seguro
-local RegisterAttack = nil
-local RegisterHit = nil
+local AttackDelays = {
+    ["Normal Attack"]     = 0.25,
+    ["Fast Attack"]       = 0.15,
+    ["Super Attack"]      = 0.05,
+    ["Bear Attack"]       = 0.1,
+    ["Super Bear Attack"] = 0.01,
+}
 
-task.spawn(function()
-    local ok, Modules = pcall(function()
-        return ReplicatedStorage:WaitForChild("Modules", 30)
-    end)
-    if not ok or not Modules then
-        warn("[Combat] ReplicatedStorage.Modules não encontrado")
-        return
-    end
-
-    local ok2, Net = pcall(function()
-        return Modules:WaitForChild("Net", 30)
-    end)
-    if not ok2 or not Net then
-        warn("[Combat] Modules.Net não encontrado")
-        return
-    end
-
-    local ok3, ra = pcall(function()
-        return Net:WaitForChild("RE/RegisterAttack", 30)
-    end)
-    local ok4, rh = pcall(function()
-        return Net:WaitForChild("RE/RegisterHit", 30)
-    end)
-
-    if ok3 then RegisterAttack = ra end
-    if ok4 then RegisterHit = rh end
-
-    print("[Combat] RegisterAttack:", RegisterAttack ~= nil)
-    print("[Combat] RegisterHit:", RegisterHit ~= nil)
-end)
-
-local function IsAlive(char)
-    return char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0
+local function IsAlive(character)
+    return character and character:FindFirstChild("Humanoid") and character.Humanoid.Health > 0
 end
 
-local function GetNearestEnemies(distance)
+local function StopAllAttacks()
+    if _G.FastAttackLoop1 then task.cancel(_G.FastAttackLoop1); _G.FastAttackLoop1 = nil end
+    if _G.FastAttackLoop2 then task.cancel(_G.FastAttackLoop2); _G.FastAttackLoop2 = nil end
+    if _G.AutoClickLoop   then task.cancel(_G.AutoClickLoop);   _G.AutoClickLoop   = nil end
+end
+
+local FastAttack1 = { Distance = 100 }
+
+function FastAttack1:Attack(BasePart, OthersEnemies)
+    if not BasePart or #OthersEnemies == 0 then return end
+    RegisterAttack:FireServer(0)
+    RegisterHit:FireServer(BasePart, OthersEnemies)
+end
+
+function FastAttack1:GetNearestEnemies()
     local OthersEnemies = {}
     local BasePart = nil
     local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then
-        return OthersEnemies, nil
-    end
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return OthersEnemies, nil end
 
     local function ProcessFolder(folder)
         if not folder then return end
@@ -60,7 +49,7 @@ local function GetNearestEnemies(distance)
             local head = enemy:FindFirstChild("Head")
             if head and IsAlive(enemy) and enemy ~= char then
                 local dist = (char.HumanoidRootPart.Position - head.Position).Magnitude
-                if dist < distance then
+                if dist < self.Distance then
                     table.insert(OthersEnemies, {enemy, head})
                     BasePart = head
                 end
@@ -73,55 +62,100 @@ local function GetNearestEnemies(distance)
     return OthersEnemies, BasePart
 end
 
--- ============================================================
--- FAST ATTACK
--- ============================================================
-function Combat:StartAttackLoop()
-    local delayTime = 0.15
+local FastAttack2 = { Distance = 100 }
 
-    -- Loop 1
-    task.spawn(function()
-        while true do
-            task.wait(delayTime)
-            local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
-            if not (S and S.FastAttack and S.AutoFarmLevel) then continue end
-            if not RegisterAttack or not RegisterHit then continue end
+function FastAttack2:Attack(BasePart, OthersEnemies)
+    if not BasePart or #OthersEnemies == 0 then return end
+    RegisterAttack:FireServer(0)
+    RegisterHit:FireServer(BasePart, OthersEnemies)
+end
 
-            local char = LocalPlayer.Character
-            if not IsAlive(char) then continue end
-            local tool = char:FindFirstChildOfClass("Tool")
-            if not tool or tool.ToolTip == "Gun" then continue end
+function FastAttack2:AttackNearest()
+    local OthersEnemies = {}
+    local BasePart = nil
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
 
-            local enemies, basePart = GetNearestEnemies(100)
-            if #enemies > 0 and basePart then
-                pcall(function()
-                    RegisterAttack:FireServer(0)
-                    RegisterHit:FireServer(basePart, enemies)
-                end)
+    local function ProcessFolder(folder)
+        if not folder then return nil end
+        for _, enemy in ipairs(folder:GetChildren()) do
+            local head = enemy:FindFirstChild("Head")
+            if head and IsAlive(enemy) and enemy ~= char then
+                local dist = (char.HumanoidRootPart.Position - head.Position).Magnitude
+                if dist < self.Distance then
+                    table.insert(OthersEnemies, {enemy, head})
+                    BasePart = head
+                end
             end
+        end
+        return BasePart
+    end
+
+    local Part1 = ProcessFolder(workspace:FindFirstChild("Enemies"))
+    local Part2 = ProcessFolder(workspace:FindFirstChild("Characters"))
+
+    if #OthersEnemies > 0 then
+        self:Attack(Part1 or Part2, OthersEnemies)
+    end
+end
+
+local function StartAttacksWithMode(mode)
+    StopAllAttacks()
+
+    local delayTime = AttackDelays[mode] or 0.15
+    _G.Settings = _G.Settings or {}
+    _G.Settings.FastAttackMode = mode
+    _G.Settings.FastAttack = true
+    _G.Settings.AutoClick = true
+
+    _G.FastAttackLoop1 = task.spawn(function()
+        while _G.Settings.FastAttack do
+            local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
+            if S and S.AutoFarmLevel then
+                local char = LocalPlayer.Character
+                if char and IsAlive(char) then
+                    local tool = char:FindFirstChildOfClass("Tool")
+                    if tool and tool.ToolTip ~= "Gun" then
+                        local enemies, basePart = FastAttack1:GetNearestEnemies()
+                        if #enemies > 0 and basePart then
+                            FastAttack1:Attack(basePart, enemies)
+                        end
+                    end
+                end
+            end
+            task.wait(delayTime)
         end
     end)
 
-    -- Loop 2
-    task.spawn(function()
-        while true do
-            task.wait(delayTime)
+    _G.FastAttackLoop2 = task.spawn(function()
+        while _G.Settings.FastAttack do
             local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
-            if not (S and S.FastAttack and S.AutoFarmLevel) then continue end
-            if not RegisterAttack or not RegisterHit then continue end
-
-            local char = LocalPlayer.Character
-            if not IsAlive(char) then continue end
-            local tool = char:FindFirstChildOfClass("Tool")
-            if not tool or tool.ToolTip == "Gun" then continue end
-
-            local enemies, basePart = GetNearestEnemies(100)
-            if #enemies > 0 and basePart then
-                pcall(function()
-                    RegisterAttack:FireServer(0)
-                    RegisterHit:FireServer(basePart, enemies)
-                end)
+            if S and S.AutoFarmLevel then
+                local char = LocalPlayer.Character
+                if char and IsAlive(char) then
+                    local tool = char:FindFirstChildOfClass("Tool")
+                    if tool and tool.ToolTip ~= "Gun" then
+                        FastAttack2:AttackNearest()
+                    end
+                end
             end
+            task.wait(delayTime)
+        end
+    end)
+
+    _G.AutoClickLoop = task.spawn(function()
+        while _G.Settings.AutoClick do
+            local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
+            if S and S.AutoFarmLevel then
+                local char = LocalPlayer.Character
+                if char and IsAlive(char) and char:FindFirstChildOfClass("Tool") then
+                    pcall(function()
+                        VirtualUser:CaptureController()
+                        VirtualUser:Button1Down(Vector2.new(1280, 672))
+                    end)
+                end
+            end
+            task.wait(0.1)
         end
     end)
 end
@@ -168,8 +202,9 @@ end
 
 function Combat:Attack() end
 
+-- Inicia tudo ao carregar
 Combat:StartBuso()
 Combat:StartHitbox()
-Combat:StartAttackLoop()
+StartAttacksWithMode("Fast Attack")
 
 return Combat
