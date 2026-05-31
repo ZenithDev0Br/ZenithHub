@@ -9,13 +9,7 @@ local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
 local noclipConnection = nil
-local currentLoopID = 0 
-
-local function setCharacterAnchor(hrp, state)
-    if hrp and hrp:IsA("BasePart") then
-        hrp.Anchored = state
-    end
-end
+local currentLoopID = 0
 
 local function setNoClip(state)
     if state then
@@ -36,6 +30,7 @@ local function setNoClip(state)
             noclipConnection:Disconnect()
             noclipConnection = nil
         end
+
         local character = LocalPlayer.Character
         if character then
             for _, part in ipairs(character:GetChildren()) do
@@ -47,21 +42,33 @@ local function setNoClip(state)
     end
 end
 
+local function getCharacter()
+    local char = LocalPlayer.Character
+    if not char then return end
+
+    local hum = char:FindFirstChild("Humanoid")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+
+    if not hum or hum.Health <= 0 then return end
+    return char, hrp
+end
+
 function FarmLevel:Start()
     local ZenithHub = getgenv().ZenithHub
     local Modules = ZenithHub and ZenithHub.Modules
     if not Modules then return end
 
     local AutoQuest = Modules.AutoQuest
-    local Tween     = Modules.Tween
-    local Combat    = Modules.Combat
-    local Weapon    = Modules.Weapon
-    local BringMob  = Modules.BringMob
-    local Settings  = Modules.FarmSettings
+    local Tween = Modules.Tween
+    local Combat = Modules.Combat
+    local Weapon = Modules.Weapon
+    local BringMob = Modules.BringMob
+    local Settings = Modules.FarmSettings
+    local AttackController = Modules.AttackController
 
     if self.Enabled then return end
 
-    currentLoopID = currentLoopID + 1
+    currentLoopID += 1
     local myLoopID = currentLoopID
     self.Enabled = true
 
@@ -69,154 +76,108 @@ function FarmLevel:Start()
         while self.Enabled and currentLoopID == myLoopID do
             task.wait(0.05)
 
-            if currentLoopID ~= myLoopID then break end
-
-            local isFarmActive = false
-            if Settings and Settings.AutoFarmLevel then
-                isFarmActive = true
-            elseif _G.SaveData and _G.SaveData["AutoFarmLevel_Save"] then
-                isFarmActive = true
-            elseif _G.AutoFarmLevel then
-                isFarmActive = true
-            end
-
-            if not isFarmActive then
-                local character = LocalPlayer.Character
-                local hrp = character and character:FindFirstChild("HumanoidRootPart")
-                setCharacterAnchor(hrp, false)
+            local character, hrp = getCharacter()
+            if not character or not hrp then
                 setNoClip(false)
-                task.wait(0.2)
                 continue
             end
 
-            pcall(function()
-                local character = LocalPlayer.Character
-                local hrp = character and character:FindFirstChild("HumanoidRootPart")
+            local isFarmActive = Settings and Settings.AutoFarmLevel
+            if not isFarmActive then
+                setNoClip(false)
+                continue
+            end
 
-                if not character or not hrp or character.Humanoid.Health <= 0 then
-                    setNoClip(false)
-                    return
+            setNoClip(true)
+
+            local QuestData = AutoQuest and AutoQuest:GetQuestData()
+            if not QuestData then continue end
+
+            -- ESCUDO UI
+            local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
+            local MainGui = PlayerGui and PlayerGui:FindFirstChild("Main")
+
+            if MainGui then
+                local dialogue = MainGui:FindFirstChild("Dialogue")
+                if dialogue and dialogue.Visible then
+                    dialogue.Visible = false
+                end
+            end
+
+            -- QUEST CHECK
+            if not AutoQuest:HasQuest() then
+                local npcCFrame = CFrame.new(QuestData.QuestPosition) * CFrame.new(0, 12, 0)
+
+                if Tween and Tween.MoveTo then
+                    Tween:MoveTo(npcCFrame)
+                else
+                    hrp.CFrame = npcCFrame
                 end
 
-                if currentLoopID == myLoopID then
-                    setNoClip(true)
+                if (hrp.Position - QuestData.QuestPosition).Magnitude < 30 then
+                    AutoQuest:StartQuest()
+                    task.wait(0.5)
                 end
 
-                -- ESCUDO ANTI-DIÁLOGO
-                local MainGui = LocalPlayer:FindFirstChild("PlayerGui") and LocalPlayer.PlayerGui:FindFirstChild("Main")
-                if MainGui then
-                    if MainGui:FindFirstChild("Dialogue") and MainGui.Dialogue.Visible then
-                        MainGui.Dialogue.Visible = false
-                    end
-                    if MainGui:FindFirstChild("Quest") and MainGui.Quest.Visible and not AutoQuest:HasQuest() then
-                        MainGui.Quest.Visible = false
-                    end
+                continue
+            end
+
+            -- COMBATE
+            local targetMob
+
+            local folder = Workspace:FindFirstChild("Enemies") or Workspace
+            for _, v in ipairs(folder:GetChildren()) do
+                if v.Name == QuestData.Enemy and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+                    targetMob = v
+                    break
+                end
+            end
+
+            if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
+                if Weapon and Weapon.Equip then
+                    Weapon:Equip()
                 end
 
-                local QuestData = AutoQuest and AutoQuest:GetQuestData()
-                if not QuestData then return end
+                local targetCFrame = targetMob.HumanoidRootPart.CFrame
 
-                -- PROTEÇÃO CONTRA BOSS
-                if AutoQuest:HasQuest() then
-                    local nomeInimigo = QuestData.Enemy:lower()
-                    local isBoss = nomeInimigo:match("king") or nomeInimigo:match("admiral")
-                        or nomeInimigo:match("warden") or nomeInimigo:match("cyborg")
-                        or nomeInimigo:match("bobby") or nomeInimigo:match("yeti")
-                        or nomeInimigo:match("jeremy") or nomeInimigo:match("fajita")
-                        or nomeInimigo:match("tide")
-
-                    if isBoss then
-                        setCharacterAnchor(hrp, false)
-                        local Remote = ReplicatedStorage:FindFirstChild("Remotes")
-                            and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
-                        if Remote then
-                            Remote:InvokeServer("AbandonQuest")
-                        end
-                        return
-                    end
+                if AttackController then
+                    targetCFrame = AttackController:GetOffsetCFrame(targetCFrame)
+                else
+                    local Settings = Modules.FarmSettings
+                    local height = Settings and Settings.AttackHeight or 22
+                    local dist = Settings and Settings.AttackDistance or 0
+                    targetCFrame = targetCFrame * CFrame.new(0, height, dist)
                 end
 
-                -- LOGICA 1: PEGAR MISSÃO
-                if not AutoQuest:HasQuest() then
-                    setCharacterAnchor(hrp, false)
+                if (hrp.Position - targetCFrame.Position).Magnitude > 1 then
+                    hrp.CFrame = targetCFrame
+                end
 
-                    local npcTargetCFrame = CFrame.new(QuestData.QuestPosition) * CFrame.new(0, 12, 0)
+                local bringMobsActive = Settings and Settings.BringMobs
+                if bringMobsActive and BringMob and BringMob.Cluster then
+                    BringMob:Cluster(QuestData.Enemy)
+                end
+
+                local fastAttack = Settings and Settings.FastAttack
+                if fastAttack and Combat and Combat.Attack then
+                    Combat:Attack()
+                end
+            else
+                if QuestData.EnemyPosition then
+                    local targetPos = typeof(QuestData.EnemyPosition) == "Vector3"
+                        and CFrame.new(QuestData.EnemyPosition)
+                        or QuestData.EnemyPosition
 
                     if Tween and Tween.MoveTo then
-                        Tween:MoveTo(npcTargetCFrame)
+                        Tween:MoveTo(targetPos)
                     else
-                        hrp.CFrame = npcTargetCFrame
-                    end
-
-                    local distanceToNPC = (hrp.Position - QuestData.QuestPosition).Magnitude
-
-                    if distanceToNPC < 30 then
-                        setCharacterAnchor(hrp, true)
-                        AutoQuest:StartQuest()
-                        task.wait(0.5) -- aguarda GUI atualizar antes do próximo HasQuest()
-                        setCharacterAnchor(hrp, false)
-                    end
-
-                -- LOGICA 2: ATACAR MONSTROS
-                else
-                    local targetMob = nil
-                    local folder = Workspace:FindFirstChild("Enemies") or Workspace
-                    for _, v in pairs(folder:GetChildren()) do
-                        if v.Name == QuestData.Enemy and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
-                            targetMob = v
-                            break
-                        end
-                    end
-
-                    local attackHeight   = (Settings and Settings.AttackHeight)   or (_G.SaveData and _G.SaveData["AttackHeight_Save"])   or 22
-                    local attackDistance = (Settings and Settings.AttackDistance) or (_G.SaveData and _G.SaveData["AttackDistance_Save"]) or 0
-
-                    if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
-                        if Weapon and Weapon.Equip then Weapon:Equip() end
-
-                        local targetCFrame = targetMob.HumanoidRootPart.CFrame * CFrame.new(0, attackHeight, attackDistance)
-
-                        if (hrp.Position - targetCFrame.Position).Magnitude > 1 then
-                            setCharacterAnchor(hrp, false)
-                            hrp.CFrame = targetCFrame
-                            task.wait(0.01)
-                        end
-
-                        if currentLoopID == myLoopID then
-                            setCharacterAnchor(hrp, true)
-                        end
-
-                        local bringMobsActive = (Settings and Settings.BringMobs) or (_G.SaveData and _G.SaveData["BringMobs_Save"])
-                        if bringMobsActive and BringMob and BringMob.Cluster then
-                            BringMob:Cluster(QuestData.Enemy)
-                        end
-
-                        local fastAttackActive = (Settings and Settings.FastAttack) or (_G.SaveData and _G.SaveData["FastAttack_Save"])
-                        if fastAttackActive and Combat and Combat.Attack then
-                            Combat:Attack()
-                        end
-                    else
-                        setCharacterAnchor(hrp, false)
-                        if QuestData.EnemyPosition then
-                            local targetPos = typeof(QuestData.EnemyPosition) == "Vector3"
-                                and CFrame.new(QuestData.EnemyPosition)
-                                or QuestData.EnemyPosition
-
-                            if Tween and Tween.MoveTo then
-                                Tween:MoveTo(targetPos)
-                            else
-                                hrp.CFrame = targetPos
-                            end
-                        end
+                        hrp.CFrame = targetPos
                     end
                 end
-            end)
+            end
         end
 
         if currentLoopID == myLoopID then
-            local character = LocalPlayer.Character
-            local hrp = character and character:FindFirstChild("HumanoidRootPart")
-            setCharacterAnchor(hrp, false)
             setNoClip(false)
         end
     end)
@@ -224,11 +185,7 @@ end
 
 function FarmLevel:Stop()
     self.Enabled = false
-    currentLoopID = currentLoopID + 1
-
-    local character = LocalPlayer.Character
-    local hrp = character and character:FindFirstChild("HumanoidRootPart")
-    setCharacterAnchor(hrp, false)
+    currentLoopID += 1
     setNoClip(false)
 end
 
