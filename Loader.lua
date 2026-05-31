@@ -72,6 +72,7 @@ local ModuleFiles = {
     -- CORE FARM
     "Modules/FarmLevel.lua",
     "Modules/AutoQuest.lua",
+    "Modules/FarmChest.lua",
 
     -- MOVEMENT
     "Modules/Tween.lua",
