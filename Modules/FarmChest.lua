@@ -13,10 +13,9 @@ local chestLoop = nil
 local isTeleporting = false
 local chestsCollectedThisSession = 0
 
--- Helper para mandar notificação usando a Redz Library instalada na sua UI
+-- Helper para mandar notificação nativa do Roblox na tela
 local function EnviarNotificacao(titulo, mensagem, tempo)
     pcall(function()
-        -- Tenta usar o próprio sistema de notificação do jogo ou do hub
         game:GetService("StarterGui"):SetCore("SendNotification", {
             Title = titulo,
             Text = mensagem,
@@ -26,7 +25,7 @@ local function EnviarNotificacao(titulo, mensagem, tempo)
 end
 
 -- ============================================================
--- FUNÇÃO DE TELEPORTE / TWEEN OTIMIZADA
+-- FUNÇÃO DE TELEPORTE / TWEEN OTIMIZADA (Com Noclip Real)
 -- ============================================================
 local function TeleportToChest(targetCFrame)
     local character = LocalPlayer.Character
@@ -35,7 +34,13 @@ local function TeleportToChest(targetCFrame)
 
     isTeleporting = true
     
-    pcall(function()
+    -- Ativa o Noclip em background para o boneco atravessar tudo sem travar
+    local noclipConnection
+    noclipConnection = game:GetService("RunService").Stepped:Connect(function()
+        if not isTeleporting or not character then
+            if noclipConnection then noclipConnection:Disconnect() end
+            return
+        end
         for _, part in ipairs(character:GetDescendants()) do
             if part:IsA("BasePart") then
                 part.CanCollide = false
@@ -52,6 +57,7 @@ local function TeleportToChest(targetCFrame)
     tween:Play()
     tween.Completed:Wait()
     
+    if noclipConnection then noclipConnection:Disconnect() end
     isTeleporting = false
 end
 
@@ -78,7 +84,7 @@ local function HopServer()
 end
 
 -- ============================================================
--- ENCONTRAR O BAÚ MAIS PRÓXIMO
+-- ENCONTRAR O BAÚ MAIS PRÓXIMO (SISTEMA DE VARREDURA INTEGRAL)
 -- ============================================================
 local function GetClosestChest()
     local character = LocalPlayer.Character
@@ -88,9 +94,15 @@ local function GetClosestChest()
     local closestChest = nil
     local shortestDistance = math.huge
 
-    for _, obj in ipairs(Workspace:GetDescendants()) do
-        if obj:IsA("Part") and (string.find(obj.Name, "Chest") or string.find(obj.Name, "Chest1") or string.find(obj.Name, "Chest2") or string.find(obj.Name, "Chest3")) then
-            if obj.Transparency < 1 and obj.Size.Magnitude > 1 then
+    -- Varre absolutamente tudo criado dentro do Workspace (Pastas, Ilhas, Modelos)
+    local descendants = Workspace:GetDescendants()
+    
+    for i = 1, #descendants do
+        local obj = descendants[i]
+        -- Verifica se é uma BasePart e se o nome contém "Chest" (Ex: Chest1, Chest2, Chest3, Chest_Silver)
+        if obj:IsA("BasePart") and string.find(obj.Name, "Chest") then
+            -- Ignora apenas baús invisíveis de decoração (RootParts ou triggers)
+            if obj.Transparency < 1 then
                 local dist = (obj.Position - hrp.Position).Magnitude
                 if dist < shortestDistance then
                     shortestDistance = dist
@@ -123,19 +135,19 @@ function FarmChest:Start()
     if self.Enabled then return end
     self.Enabled = true
     chestsCollectedThisSession = 0
+    print("[ZenithHub] Loop de monitoramento de baús ativado.")
 
     chestLoop = task.spawn(function()
         while self.Enabled do
-            task.wait(0.05)
+            task.wait(0.1) -- Delay leve para evitar uso desnecessário de CPU no loop
 
             local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
             
-            -- REGRA REQUISITADA: O farm SÓ roda se o "Auto Farm Chest" principal estiver ligado!
+            -- Checa se o Toggle principal "Auto Farm Chest" está ligado na UI
             local isNormalActive = S and S.AutoFarmChest
             local isHopActive = S and S.AutoFarmChestHop
             
             if not isNormalActive then 
-                -- Se o farm principal desligar, desliga tudo
                 break 
             end
 
@@ -157,30 +169,25 @@ function FarmChest:Start()
                 continue 
             end
 
+            -- Executa a busca profunda pelo baú mais perto
             local targetChest = GetClosestChest()
 
             if targetChest and targetChest.Parent then
-                -- Teleporta e coleta
+                print("[ZenithHub] Baú encontrado! Teleportando para: " .. targetChest.Name)
                 TeleportToChest(targetChest.CFrame)
-                task.wait(0.15)
+                task.wait(0.2) -- Garante que o Roblox registre o toque físico e te dê o dinheiro
                 chestsCollectedThisSession = chestsCollectedThisSession + 1
             else
-                -- LÓGICA DE FIM DE BAÚS NO MAPA
+                -- Se não achou nenhum baú no mapa inteiro
                 if not isTeleporting then
-                    -- REGRA REQUISITADA: Só faz Hop se o botão de Hop estiver ligado JUNTO com o Auto Farm Chest
                     if isHopActive then
-                        -- Envia a notificação que você pediu antes de pular de servidor
                         EnviarNotificacao("Zenith Hub", "Teleport in 10 minutes", 5)
-                        
-                        print("[ZenithHub] Baús esgotados. Aguardando timer para Server Hop...")
-                        task.wait(5) -- Pequeno delay de segurança antes de forçar o teleport
-                        
+                        task.wait(2) -- Delay estratégico para a notificação aparecer antes do kick do Hop
                         pcall(HopServer)
-                        task.wait(3)
-                    else
-                        -- Se o Hop estiver desligado, apenas aguarda o respawn normal dos baús no mesmo servidor
-                        print("[ZenithHub] Sem baús no mapa. Aguardando respawn...")
                         task.wait(5)
+                    else
+                        print("[ZenithHub] Nenhum baú disponível no mapa. Aguardando respawn...")
+                        task.wait(4) -- Espera 4 segundos antes de checar o mapa de novo
                     end
                 end
             end
@@ -204,7 +211,7 @@ function FarmChest:Stop()
         chestLoop = nil
     end
 
-    -- Restaura colisões normais do corpo
+    -- Devolve colisões normais do corpo
     local character = LocalPlayer.Character
     if character then
         for _, part in ipairs(character:GetChildren()) do
