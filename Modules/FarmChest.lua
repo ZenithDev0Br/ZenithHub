@@ -83,40 +83,38 @@ local function HopServer()
 end
 
 -- ============================================================
--- PROCURAR BAÚS CORRETAMENTE DENTRO DE MODELOS (CHESTMODELS)
+-- PROCURAR BAÚS INTERNOS (CHESTMODELS)
 -- ============================================================
 local function GetClosestChest()
     local character = LocalPlayer.Character
     local hrp = character and character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return nil end
+    if not hrp then return nil, nil end
 
+    local closestChestModel = nil
     local closestChestCFrame = nil
     local shortestDistance = math.huge
 
-    -- Alvo 1: Pasta exata vista no seu Dex (ChestModels)
     local chestModelsFolder = Workspace:FindFirstChild("ChestModels")
     local targets = chestModelsFolder and chestModelsFolder:GetChildren() or Workspace:GetDescendants()
 
     for i = 1, #targets do
         local obj = targets[i]
         
-        -- Verifica se encontramos os modelos (GoldChest, SilverChest, etc)
-        if obj:IsA("Model") and string.find(obj.Name, "Chest") then
-            -- Pega a parte física principal do baú para ler a posição
+        if obj:IsA("Model") and string.find(obj.Name, "Chest") and not obj:GetAttribute("Collected") then
             local primary = obj.PrimaryPart or obj:FindFirstChildOfClass("BasePart") or obj:FindFirstChild("Part")
             
-            if primary then
+            if primary and primary.Transparency < 1 then
                 local dist = (primary.Position - hrp.Position).Magnitude
                 if dist < shortestDistance then
                     shortestDistance = dist
-                    -- Retorna a CFrame exata da parte interna do baú
+                    closestChestModel = obj
                     closestChestCFrame = primary.CFrame
                 end
             end
         end
     end
 
-    return closestChestCFrame
+    return closestChestCFrame, closestChestModel
 end
 
 -- ============================================================
@@ -155,9 +153,10 @@ function FarmChest:Start()
                 break
             end
 
+            -- Checagem Real do Limite do Slider da UI
             local maxChests = S and S.AmountChest or 30
             if chestsCollectedThisSession >= maxChests then
-                EnviarNotificacao("Zenith Hub", "Limite de baús atingido.", 5)
+                EnviarNotificacao("Zenith Hub", "Limite real de baús atingido: " .. tostring(maxChests), 5)
                 break
             end
 
@@ -166,13 +165,18 @@ function FarmChest:Start()
                 continue 
             end
 
-            -- Agora puxamos a CFrame direta da Part real do baú
-            local targetCFrame = GetClosestChest()
+            -- Retorna a CFrame e a instância do modelo do baú
+            local targetCFrame, targetModel = GetClosestChest()
 
-            if targetCFrame then
+            if targetCFrame and targetModel then
                 TeleportToChest(targetCFrame)
-                task.wait(0.15) -- Delay pro server computar o toque
+                
+                -- Marca o baú como coletado localmente para o loop ignorar ele imediatamente
+                targetModel:SetAttribute("Collected", true)
+                
+                -- Soma +1 real na contagem geral e dá um cooldown para o baú sumir da memória
                 chestsCollectedThisSession = chestsCollectedThisSession + 1
+                task.wait(0.25) 
             else
                 if not isTeleporting then
                     if isHopActive then
@@ -181,6 +185,7 @@ function FarmChest:Start()
                         pcall(HopServer)
                         task.wait(5)
                     else
+                        -- Se não achou nada e o HOP tá desligado, dorme 3 segundos para economizar CPU
                         task.wait(3)
                     end
                 end
