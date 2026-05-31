@@ -10,7 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CommE = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommE")
 local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
 
--- Helper para pegar Settings sempre atualizado
+-- Helpers para pegar instâncias atualizadas
 local function S()
     return getgenv().ZenithHub and getgenv().ZenithHub.Modules and getgenv().ZenithHub.Modules.FarmSettings
 end
@@ -218,9 +218,6 @@ FarmTab:AddToggle({
     end
 })
 
--- ============================================================================
--- SESSÃO CORRIGIDA: Farm Chest (FARM DE BAÚS SEM CONFLITOS)
--- ============================================================================
 FarmTab:AddSection("Farm Chest")
 
 FarmTab:AddSlider({
@@ -244,11 +241,7 @@ FarmTab:AddToggle({
         local Modules = M()
         local FarmChest = Modules and Modules.FarmChest
         if FarmChest then
-            if v then 
-                FarmChest:Start() 
-            else 
-                FarmChest:Stop() 
-            end
+            if v then FarmChest:Start() else FarmChest:Stop() end
         else
             warn("[ZenithHub] Módulo FarmChest não encontrado.")
         end
@@ -260,16 +253,12 @@ FarmTab:AddToggle({
     Default = false,
     Callback = function(v)
         local s = S()
-        if s then s.AutoFarmChestHop = v end -- Corrigido flag para diferenciar do farm normal
+        if s then s.AutoFarmChestHop = v end
 
         local Modules = M()
         local FarmChest = Modules and Modules.FarmChest
         if FarmChest then
-            if v then 
-                FarmChest:Start() 
-            else 
-                FarmChest:Stop() 
-            end
+            if v then FarmChest:Start() else FarmChest:Stop() end
         else
             warn("[ZenithHub] Módulo FarmChest não encontrado.")
         end
@@ -281,7 +270,31 @@ FarmTab:AddToggle({
     Default = false,
     Callback = function(v)
         local s = S()
-        if s then s.StopWithItem = v end -- Corrigido salvamento da configuração do item
+        if s then s.StopWithItem = v end
+    end
+})
+
+-- ============================================================================
+-- ABA 3: VISUAL (NOVA)
+-- ============================================================================
+local VisualTab = Window:MakeTab({ Title = "Visual", Icon = "Eye" })
+VisualTab:AddSection("ESP Render")
+
+VisualTab:AddToggle({
+    Name = "ESP Chest (Ver Baús)",
+    Default = false,
+    Callback = function(v)
+        local s = S()
+        if s then s.EspChest = v end
+    end
+})
+
+VisualTab:AddToggle({
+    Name = "ESP Players",
+    Default = false,
+    Callback = function(v)
+        local s = S()
+        if s then s.EspPlayers = v end
     end
 })
 
