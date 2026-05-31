@@ -219,7 +219,7 @@ FarmTab:AddToggle({
 })
 
 -- ============================================================================
--- SESSÃO ADICIONADA: Farm Chest (FARM DE BAÚS)
+-- SESSÃO CORRIGIDA: Farm Chest (FARM DE BAÚS SEM CONFLITOS)
 -- ============================================================================
 FarmTab:AddSection("Farm Chest")
 
@@ -228,8 +228,11 @@ FarmTab:AddSlider({
     Min = 10,
     Max = 60,
     Default = 30,
+    Callback = function(v)
+        local s = S()
+        if s then s.AmountChest = v end
+    end
 })
-
 
 FarmTab:AddToggle({
     Name = "Auto Farm Chest",
@@ -257,7 +260,7 @@ FarmTab:AddToggle({
     Default = false,
     Callback = function(v)
         local s = S()
-        if s then s.AutoFarmChest = v end
+        if s then s.AutoFarmChestHop = v end -- Corrigido flag para diferenciar do farm normal
 
         local Modules = M()
         local FarmChest = Modules and Modules.FarmChest
@@ -278,19 +281,7 @@ FarmTab:AddToggle({
     Default = false,
     Callback = function(v)
         local s = S()
-        if s then s.AutoFarmChest = v end
-
-        local Modules = M()
-        local FarmChest = Modules and Modules.FarmChest
-        if FarmChest then
-            if v then 
-                FarmChest:Start() 
-            else 
-                FarmChest:Stop() 
-            end
-        else
-            warn("[ZenithHub] Módulo FarmChest não encontrado.")
-        end
+        if s then s.StopWithItem = v end -- Corrigido salvamento da configuração do item
     end
 })
 
