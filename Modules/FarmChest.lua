@@ -13,6 +13,18 @@ local chestLoop = nil
 local isTeleporting = false
 local chestsCollectedThisSession = 0
 
+-- Helper para mandar notificação usando a Redz Library instalada na sua UI
+local function EnviarNotificacao(titulo, mensagem, tempo)
+    pcall(function()
+        -- Tenta usar o próprio sistema de notificação do jogo ou do hub
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = titulo,
+            Text = mensagem,
+            Duration = tempo or 5
+        })
+    end)
+end
+
 -- ============================================================
 -- FUNÇÃO DE TELEPORTE / TWEEN OTIMIZADA
 -- ============================================================
@@ -95,9 +107,7 @@ end
 -- VERIFICAÇÃO DE ITENS RAROS (STOP WITH ITEM)
 -- ============================================================
 local function HasRareItem()
-    -- Verifica na Mochila (Backpack) e na mão do personagem (Character)
     local items = { "Fist of Darkness", "God's Chalice", "Punho da Escuridão", "Cálice de Deus" }
-    
     for _, itemName in ipairs(items) do
         if LocalPlayer.Backpack:FindFirstChild(itemName) or (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild(itemName)) then
             return true
@@ -120,24 +130,25 @@ function FarmChest:Start()
 
             local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
             
-            -- O farm roda se o Chest Normal OU o Chest HOP estiverem ativos na UI
+            -- REGRA REQUISITADA: O farm SÓ roda se o "Auto Farm Chest" principal estiver ligado!
             local isNormalActive = S and S.AutoFarmChest
             local isHopActive = S and S.AutoFarmChestHop
             
-            if not isNormalActive and not isHopActive then 
+            if not isNormalActive then 
+                -- Se o farm principal desligar, desliga tudo
                 break 
             end
 
             -- PROTEÇÃO: Stop With Item
             if S and S.StopWithItem and HasRareItem() then
-                print("[ZenithHub] Item raro detectado! Parando Farm Chest de segurança.")
+                EnviarNotificacao("Zenith Hub", "Item raro detectado! Parando Farm por segurança.", 7)
                 break
             end
 
             -- PROTEÇÃO: Amount Chest Limiter
             local maxChests = S and S.AmountChest or 30
             if chestsCollectedThisSession >= maxChests then
-                print("[ZenithHub] Limite de baús atingido nesta sessão ("..tostring(maxChests).."). Parando.")
+                EnviarNotificacao("Zenith Hub", "Limite de baús atingido nesta sessão.", 5)
                 break
             end
 
@@ -149,18 +160,25 @@ function FarmChest:Start()
             local targetChest = GetClosestChest()
 
             if targetChest and targetChest.Parent then
+                -- Teleporta e coleta
                 TeleportToChest(targetChest.CFrame)
                 task.wait(0.15)
                 chestsCollectedThisSession = chestsCollectedThisSession + 1
             else
-                -- LÓGICA DE FIM DE MAPA
+                -- LÓGICA DE FIM DE BAÚS NO MAPA
                 if not isTeleporting then
+                    -- REGRA REQUISITADA: Só faz Hop se o botão de Hop estiver ligado JUNTO com o Auto Farm Chest
                     if isHopActive then
-                        print("[ZenithHub] Baús esgotados. Iniciando Server Hop...")
+                        -- Envia a notificação que você pediu antes de pular de servidor
+                        EnviarNotificacao("Zenith Hub", "Teleport in 10 minutes", 5)
+                        
+                        print("[ZenithHub] Baús esgotados. Aguardando timer para Server Hop...")
+                        task.wait(5) -- Pequeno delay de segurança antes de forçar o teleport
+                        
                         pcall(HopServer)
                         task.wait(3)
                     else
-                        -- Se for o farm normal, espera 5 segundos antes de procurar respawn
+                        -- Se o Hop estiver desligado, apenas aguarda o respawn normal dos baús no mesmo servidor
                         print("[ZenithHub] Sem baús no mapa. Aguardando respawn...")
                         task.wait(5)
                     end
@@ -175,7 +193,6 @@ end
 function FarmChest:Stop()
     self.Enabled = false
     
-    -- Desliga os Toggles visualmente na tabela de settings da UI
     local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
     if S then
         S.AutoFarmChest = false
@@ -196,7 +213,7 @@ function FarmChest:Stop()
             end
         end
     end
-    print("[ZenithHub] Módulo FarmChest Parado.")
+    print("[ZenithHub] Módulo FarmChest totalmente parado.")
 end
 
 return FarmChest
