@@ -10,7 +10,7 @@ local LocalPlayer = Players.LocalPlayer
 local Net = ReplicatedStorage:WaitForChild("Remotes")
 local CommF = Net:WaitForChild("CommF_")
 
-local busoLoop = nil
+local busoLoop   = nil
 local hitboxLoop = nil
 local attackLoop = nil
 
@@ -42,7 +42,7 @@ local function GetNearestEnemy()
 end
 
 -- ============================================================
--- NAMECALL HOOK (redireciona mira pro inimigo mais próximo)
+-- NAMECALL HOOK
 -- ============================================================
 local mt = getrawmetatable(game)
 local oldNamecall = mt.__namecall
@@ -54,7 +54,7 @@ mt.__namecall = newcclosure(function(...)
         if tostring(args[1]) == "RemoteEvent" then
             if tostring(args[2]) ~= "true" and tostring(args[2]) ~= "false" then
                 local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
-                if S and S.FastAttack then
+                if S and S.FastAttack and S.AutoFarmLevel then -- CORREÇÃO: só ativa se AutoFarmLevel estiver ligado
                     local enemy = GetNearestEnemy()
                     if enemy then
                         local hrpMob = enemy:FindFirstChild("HumanoidRootPart")
@@ -111,23 +111,34 @@ function Combat:StartHitbox()
 end
 
 -- ============================================================
--- FAST ATTACK (mobile: VirtualInputManager)
+-- FAST ATTACK — só roda se AutoFarmLevel estiver ligado
 -- ============================================================
 function Combat:StartAttackLoop()
     if attackLoop then return end
     attackLoop = task.spawn(function()
         while true do
-            task.wait(0.1)
             local S = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
-            if not (S and S.FastAttack) then continue end
+
+            -- CORREÇÃO: só ataca se AutoFarmLevel E FastAttack estiverem ligados
+            if not (S and S.FastAttack and S.AutoFarmLevel) then
+                task.wait(0.1)
+                continue
+            end
+
             local char = LocalPlayer.Character
-            if not IsAlive(char) then continue end
-            if not char:FindFirstChildOfClass("Tool") then continue end
+            if not IsAlive(char) or not char:FindFirstChildOfClass("Tool") then
+                task.wait(0.1)
+                continue
+            end
+
             pcall(function()
                 VirtualInputManager:SendMouseButtonEvent(640, 360, 0, true, game, 1)
-                task.wait(0.05)
+                task.wait(0.02) -- CORREÇÃO: de 0.05 para 0.02 (mais rápido)
                 VirtualInputManager:SendMouseButtonEvent(640, 360, 0, false, game, 1)
             end)
+
+            -- CORREÇÃO: delay entre ataques reduzido para 0.05
+            task.wait(0.05)
         end
     end)
 end
