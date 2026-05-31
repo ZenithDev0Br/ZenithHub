@@ -1,31 +1,31 @@
-local TweenModule = {}
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
+
+local Tween = {}
 local LocalPlayer = Players.LocalPlayer
 
-function TweenModule:MoveTo(targetCFrame)
-    local Character = LocalPlayer.Character
-    local Root = Character and Character:FindFirstChild("HumanoidRootPart")
-    if not Root then return end
+function Tween:MoveTo(targetCFrame)
+    local char = LocalPlayer.Character
+    if not char then return end
 
-    -- Puxa a velocidade configurada no Slider da sua UI
-    local Modules = getgenv().ZenithHub and getgenv().ZenithHub.Modules
-    local Settings = Modules and Modules.FarmSettings
-    local Speed = Settings and Settings.TweenSpeed or 300
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
 
-    local Distance = (Root.Position - targetCFrame.Position).Magnitude
-    
-    if Distance < 5 then
-        Root.CFrame = targetCFrame
-        return
-    end
+    local settings = getgenv().ZenithHub and getgenv().ZenithHub.Modules.FarmSettings
+    local speed = (settings and settings.TweenSpeed) or 300
 
-    local Time = Distance / Speed
-    local Info = TweenInfo.new(Time, Enum.EasingStyle.Linear)
-    local Tween = TweenService:Create(Root, Info, {CFrame = targetCFrame})
-    
-    Tween:Play()
-    Tween.Completed:Wait() -- Espera chegar para continuar o farm
+    local distance = (hrp.Position - targetCFrame.Position).Magnitude
+    local time = distance / speed
+
+    local tweenInfo = TweenInfo.new(
+        math.clamp(time, 0.05, 2),
+        Enum.EasingStyle.Linear
+    )
+
+    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
+    tween:Play()
+
+    return tween
 end
 
-return TweenModule
+return Tween
